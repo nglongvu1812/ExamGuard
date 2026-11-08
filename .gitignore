@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ExamGuard runtime data & secrets (NEVER commit real student data or local DB)
+ExamGuardData/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build / Packaging
+build/
+dist/
+*.spec
+release/
+
+# Logs & OS
+logs/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
