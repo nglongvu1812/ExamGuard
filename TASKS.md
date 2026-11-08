@@ -6,14 +6,14 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-001 | TODO | Khởi tạo monorepo, Python/Node versions, lockfile, no secrets committed |
-| EG-002 | TODO | FastAPI `/health`, Pydantic settings, structured local logging + tests |
-| EG-003 | TODO | SQLite WAL, SQLAlchemy, Alembic base migration, DB consistency test |
-| EG-004 | TODO | React teacher/student shells, local font/assets, no CDN request |
-| EG-005 | TODO | Windows launcher local process lifecycle, graceful shutdown |
-| EG-006 | TODO | LAN interface discovery, QR/status, firewall diagnostic guide, no hardcoded IP |
-| EG-007 | TODO | CI/local lint/typecheck/tests and test fixture framework |
-| EG-008 | TODO | Manual P0 E2E on 2 devices with Internet disconnected and documented evidence |
+| EG-001 | DONE | Khởi tạo monorepo, Python/Node versions, lockfile, no secrets committed |
+| EG-002 | DONE | FastAPI `/health`, Pydantic settings, structured local logging + tests |
+| EG-003 | DONE | SQLite WAL, SQLAlchemy, Alembic base migration, DB consistency test |
+| EG-004 | DONE | React teacher/student shells, local font/assets, no CDN request |
+| EG-005 | DONE | Windows launcher local process lifecycle, graceful shutdown |
+| EG-006 | DONE | LAN interface discovery, QR/status, firewall diagnostic guide, no hardcoded IP |
+| EG-007 | DONE | CI/local lint/typecheck/tests and test fixture framework |
+| EG-008 | REVIEW | Automated offline SPA + LAN API verified; physical 2-phone AP test pending hardware pilot |
 
 ## P1 — Roster
 

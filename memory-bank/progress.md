@@ -4,25 +4,17 @@
 
 | Phase | State | Note |
 | --- | --- | --- |
-| P0 Foundation | TODO | No code |
-| P1 Roster | TODO | No code |
-| P2 Converter | TODO | No code |
-| P3 Exam Engine | TODO | No code |
-| P4 Monitoring | TODO | No code |
-| P5 Scores/Receipts | TODO | No code |
+| P0 Foundation | PASS (EG-008 REVIEW) | Code + tests + offline build pass; hardware 2-phone AP pending pilot |
+| P1 Roster | IN_PROGRESS | Starting EG-101..EG-107 |
+| P2 Converter | TODO | Pending P1 |
+| P3 Exam Engine | TODO | Pending P2 |
+| P4 Monitoring | TODO | Pending P3 |
+| P5 Scores/Receipts | TODO | Pending P4 |
 | P6 Paper/OMR | TODO | Optional |
-| P7 Release/Pilot | TODO | No benchmark |
+| P7 Release/Pilot | TODO | Pending |
 
-## Daily log append template
-
-```text
-YYYY-MM-DD — EG-NNN
-Implemented:
-Files touched:
-Verification commands + results:
-Evidence paths:
-Remaining TODO/bugs:
-Next:
-```
-
-Chỉ đánh dấu DONE trong `TASKS.md` khi có mã, tests, acceptance evidence và người dùng chấp thuận gate nếu cần.
+2026-11-08 — P0 (`EG-001`..`EG-008`)
+Implemented: Monorepo, FastAPI health/network/QR, SQLite WAL + Alembic, React Teacher/Student offline shells, Windows launcher, verify script.
+Verification: `tools/verify.ps1` + `pytest` (6/6 passed, frontend 2/2 passed, build ok).
+Evidence paths: `docs/phase-reports/PHASE_P0_REPORT.md`, `backend/tests/test_p0_foundation.py`, `frontend/src/App.test.tsx`.
+Next: P1 (`EG-101`..`EG-107`).

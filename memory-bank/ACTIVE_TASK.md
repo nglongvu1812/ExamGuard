@@ -1,8 +1,4 @@
 # Active Task
 
-- **Task ID:** EG-001 (khởi đầu Phase P0)
-- **Mục tiêu:** Khởi tạo cấu trúc monorepo (`backend/`, `frontend/`, `desktop/`, `tools/`, `samples/`, `docs/`), cấu hình Python 3.12 + Node 24, lockfiles, `.gitignore` an toàn không lộ secrets, thiết lập CI kiểm tra cục bộ.
-- **Định nghĩa hoàn thành (DoD):**
-  - Cấu trúc thư mục rõ ràng theo `ARCHITECTURE.md` & `README.md`.
-  - Virtualenv Python & `package.json` + `package-lock.json` được tạo và khóa phiên bản.
-  - Không có khóa bí mật hay dữ liệu thật nào được commit.
+- **Task ID:** EG-101 .. EG-107 (Phase P1 — Classrooms & Roster Identity)
+- **Mục tiêu:** Xây dựng toàn bộ quản lý lớp học, danh sách học sinh, import CSV/XLSX (dry-run preview & báo cáo trùng mã), mã mời ngẫu nhiên có hash & rate-limit, phòng chờ duyệt học sinh vào thi, ràng buộc 1 attempt/học sinh + browser binding best-effort + kiểm thử bảo mật cô lập dữ liệu giữa học sinh.

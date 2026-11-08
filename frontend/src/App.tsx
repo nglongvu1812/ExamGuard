@@ -1,0 +1,144 @@
+import { useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import {
+  systemApi,
+  type HealthResponse,
+  type NetworkStatusResponse,
+} from "./api/client";
+import { TeacherLayout } from "./layouts/TeacherLayout";
+import { StudentJoinShell } from "./pages/student/StudentJoinShell";
+import { DashboardPage } from "./pages/teacher/DashboardPage";
+import { LanHelpPage } from "./pages/teacher/LanHelpPage";
+import { PlaceholderSection } from "./pages/teacher/PlaceholderSection";
+
+export function AppRoutes() {
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [network, setNetwork] = useState<NetworkStatusResponse | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const [selectedIp, setSelectedIp] = useState<string | undefined>(undefined);
+
+  const loadSystemState = useCallback(async (ip?: string) => {
+    try {
+      const h = await systemApi.getHealth();
+      setHealth(h);
+      setHealthError(null);
+    } catch (err) {
+      setHealth(null);
+      setHealthError(err instanceof Error ? err.message : "Không thể kết nối máy chủ");
+    }
+
+    try {
+      const n = await systemApi.getNetworkStatus(ip);
+      setNetwork(n);
+      setNetworkError(null);
+    } catch (err) {
+      setNetwork(null);
+      setNetworkError(err instanceof Error ? err.message : "Không thể kiểm tra mạng LAN");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSystemState(selectedIp);
+  }, [loadSystemState, selectedIp]);
+
+  const handleSelectIp = (ip: string) => {
+    setSelectedIp(ip || undefined);
+  };
+
+  return (
+    <Routes>
+      <Route
+        path="/join"
+        element={<StudentJoinShell health={health} healthError={healthError} />}
+      />
+      <Route
+        path="/student"
+        element={<StudentJoinShell health={health} healthError={healthError} />}
+      />
+      <Route
+        path="*"
+        element={
+          <TeacherLayout health={health} healthError={healthError}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <DashboardPage
+                    health={health}
+                    network={network}
+                    networkError={networkError}
+                    onSelectIp={handleSelectIp}
+                    onRefresh={() => void loadSystemState(selectedIp)}
+                  />
+                }
+              />
+              <Route
+                path="/classes"
+                element={
+                  <PlaceholderSection
+                    title="Quản lý lớp học & danh sách học sinh"
+                    description="Nhập danh sách học sinh từ Excel/CSV, kiểm tra trùng mã và quản lý lịch sử lớp học."
+                    phaseLabel="Phase P1"
+                  />
+                }
+              />
+              <Route
+                path="/questions"
+                element={
+                  <PlaceholderSection
+                    title="Ngân hàng đề & chuyển đổi Word/PDF"
+                    description="Import file đề giữ nguyên ảnh, bảng biểu và công thức toán học để giáo viên rà soát trước khi duyệt."
+                    phaseLabel="Phase P2"
+                  />
+                }
+              />
+              <Route
+                path="/exams/new"
+                element={
+                  <PlaceholderSection
+                    title="Tạo bài kiểm tra & mở phòng thi"
+                    description="Chọn lớp, chọn đề đã duyệt, cấu hình thời gian làm bài, trộn câu hỏi/đáp án và mở phòng chờ."
+                    phaseLabel="Phase P3"
+                  />
+                }
+              />
+              <Route
+                path="/results"
+                element={
+                  <PlaceholderSection
+                    title="Lịch sử & kết quả kiểm tra"
+                    description="Chấm bài tự động, phê duyệt công bố điểm, xuất bảng điểm Excel/PDF và xử lý phúc khảo có lưu vết."
+                    phaseLabel="Phase P5"
+                  />
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <PlaceholderSection
+                    title="Sao lưu, khôi phục & cài đặt dữ liệu"
+                    description="Kiểm tra thư mục dữ liệu ExamGuardData, tạo bản sao lưu an toàn và khôi phục khi sự cố."
+                    phaseLabel="Phase P3"
+                  />
+                }
+              />
+              <Route
+                path="/lan-help"
+                element={<LanHelpPage network={network} onSelectIp={handleSelectIp} />}
+              />
+            </Routes>
+          </TeacherLayout>
+        }
+      />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}

@@ -1,0 +1,98 @@
+"""FastAPI application factory for ExamGuard Local Server."""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.api.health import router as system_router
+from app.core.config import Settings, get_settings
+from app.core.logging import configure_logging
+from app.db.base import Base
+from app.db.models import SystemMetadata, TeacherProfile  # noqa: F401
+from app.db.session import create_session_factory, create_sqlite_engine
+
+logger = logging.getLogger("examguard.app")
+
+
+def _resolve_static_dir(settings: Settings) -> Path | None:
+    if settings.static_dir and settings.static_dir.exists():
+        return settings.static_dir
+    candidate = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    if candidate.exists() and (candidate / "index.html").exists():
+        return candidate
+    return None
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    resolved_settings = settings or get_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        resolved_settings.ensure_data_dirs()
+        configure_logging(resolved_settings.logs_dir, resolved_settings.log_level)
+
+        engine = create_sqlite_engine(resolved_settings)
+        Base.metadata.create_all(bind=engine)
+        session_factory = create_session_factory(engine)
+
+        app.state.settings = resolved_settings
+        app.state.engine = engine
+        app.state.session_factory = session_factory
+        app.state.bound_port = resolved_settings.port
+
+        logger.info("ExamGuard backend started (version=%s)", resolved_settings.app_version)
+        try:
+            yield
+        finally:
+            engine.dispose()
+            logger.info("ExamGuard backend stopped cleanly")
+
+    app = FastAPI(
+        title="ExamGuard Local Server",
+        version=resolved_settings.app_version,
+        lifespan=lifespan,
+    )
+
+    # Local LAN SPA & dev server origins only; no wildcard external cloud dependencies
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "http://127.0.0.1:8000",
+            "http://localhost:8000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    app.include_router(system_router)
+
+    static_dir = _resolve_static_dir(resolved_settings)
+    if static_dir is not None:
+        assets_path = static_dir / "assets"
+        if assets_path.exists():
+            app.mount("/assets", StaticFiles(directory=assets_path), name="static-assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        def serve_spa(full_path: str) -> FileResponse:
+            if full_path.startswith("api/") or full_path.startswith("ws/"):
+                raise HTTPException(status_code=404, detail="Not Found")
+            target = (static_dir / full_path).resolve()
+            if full_path and target.is_file() and target.is_relative_to(static_dir.resolve()):
+                return FileResponse(target)
+            return FileResponse(static_dir / "index.html")
+
+    return app
+
+
+app = create_app()

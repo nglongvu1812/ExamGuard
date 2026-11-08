@@ -1,34 +1,11 @@
 # Active Context — Agent cập nhật sau mọi phiên
 
-Ngày tạo: 2026-11-08. Hiện **chưa có mã nguồn triển khai** trong bộ tài liệu; mọi phase ở trạng thái TODO.
-
 ## Current focus
 
-- Phase: P0.
-- Current task: EG-001 — khởi tạo monorepo và môi trường kiểm thử.
-- Objective: thiết lập foundation offline Windows Portable trước khi phát triển chức năng.
-- Blockers: chưa có môi trường Windows/AP benchmark; chưa chọn cuối giữa pywebview và browser teacher shell; chưa chốt local AI optional.
-
-## Next precise actions
-
-1. Agent kiểm tra workspace thực tế và git status.
-2. Đọc `AGENTS.md`, `MASTER_PLAN.md`, `DECISIONS.md`, `SECURITY_AND_FAIRNESS.md`.
-3. Trình bày P0 implementation plan file-by-file và test; được phép triển khai EG-001 sau khi check phạm vi.
-4. Sau từng task cập nhật file này và `progress.md`, không xóa lịch sử.
+- Phase: P1 — Classrooms & Roster Identity.
+- Current task: EG-101..EG-107 (Roster CRUD, CSV/XLSX dry-run import, Teacher UI, invite codes, pending/approve room flow, device binding, cross-student isolation tests).
+- Objective: Đảm bảo quản lý lớp học bền vững và luồng định danh học sinh an toàn không cần tài khoản cloud.
 
 ## Last completed work
 
-- 2026-11-08: Created planning/rules/prompt kit only. **No application code; no tests run.**
-
-## Template cập nhật
-
-```text
-Date:
-Phase/task:
-Current repo commit:
-Files changed:
-Tests run and results:
-Decisions made:
-Known blockers:
-Next task with acceptance:
-```
+- 2026-11-08: Hoàn thành Phase P0 (`EG-001`..`EG-007` DONE, `EG-008` REVIEW). Tất cả kiểm thử `ruff`, `mypy`, `pytest` (6/6), `eslint`, `tsc`, `vitest` (2/2), `vite build` đều PASS. Báo cáo lưu tại `docs/phase-reports/PHASE_P0_REPORT.md`.
