@@ -21,6 +21,7 @@ from app.api.exams import router as exams_router
 from app.api.health import router as system_router
 from app.api.monitoring import router as monitoring_router
 from app.api.questions import router as questions_router
+from app.api.results import router as results_router
 from app.api.rooms import router as rooms_router
 from app.api.roster import router as roster_router
 from app.api.ws import RoomConnectionManager
@@ -41,12 +42,15 @@ from app.db.models import (  # noqa: F401
     Exam,
     ExamPermutation,
     ExamQuestion,
+    GradeRun,
     ImportJob,
     Incident,
     PresenceEvent,
     Question,
     QuestionDraft,
     QuestionVersion,
+    ReceiptVersion,
+    ScoreVersion,
     SourceDocument,
     Student,
     StudentInvite,
@@ -153,6 +157,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(rooms_router)
     app.include_router(exams_router)
     app.include_router(monitoring_router)
+    app.include_router(results_router)
     app.include_router(questions_router)
     app.include_router(assets_router)
     app.include_router(ws_router)

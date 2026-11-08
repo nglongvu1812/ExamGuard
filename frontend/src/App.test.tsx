@@ -3,12 +3,16 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes } from "./App";
 import {
+  auditApi,
   backupApi,
+  examApi,
   monitoringApi,
   questionApi,
+  resultsApi,
   roomApi,
   rosterApi,
   studentExamApi,
+  studentResultApi,
   systemApi,
 } from "./api/client";
 
@@ -396,5 +400,205 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Máy chủ đã lưu an toàn đến lần sửa #4/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kiểm tra trạng thái mở lại" })).toBeInTheDocument();
+  });
+
+  it("renders T7/T8 teacher results, publish modal, audit verification, and Phúc khảo trace on /results", async () => {
+    vi.spyOn(examApi, "listExams").mockResolvedValue([
+      {
+        exam_id: "ex-res-1",
+        classroom_id: "c1",
+        room_code: "RES01",
+        title: "Kiểm tra Toán Học kỳ 1",
+        duration_s: 900,
+        status: "REVIEWED",
+        question_count: 1,
+        shuffle_questions: true,
+        shuffle_options: true,
+        remaining_s: 0,
+        is_paused: false,
+        start_at: "2026-11-08T10:00:00Z",
+        deadline_at: "2026-11-08T10:15:00Z",
+        closed_at: "2026-11-08T10:15:00Z",
+        policy: { heartbeat_s: 3, suspected_s: 5, disconnect_s: 15, lock_after_s: 30, grace_submit_s: 30 },
+      },
+    ]);
+    vi.spyOn(resultsApi, "getExamResults").mockResolvedValue({
+      exam: {
+        exam_id: "ex-res-1",
+        classroom_id: "c1",
+        classroom_name: "12A1",
+        room_code: "RES01",
+        title: "Kiểm tra Toán Học kỳ 1",
+        status: "REVIEWED",
+        closed_at: "2026-11-08T10:15:00Z",
+        reviewed_at: "2026-11-08T10:20:00Z",
+        published_at: null,
+        unresolved_attempts: 0,
+        question_count: 1,
+      },
+      stats: {
+        total_students: 1,
+        graded_count: 1,
+        unsubmitted_count: 0,
+        mean_score: 10,
+        median_score: 10,
+        max_score: 10,
+        min_score: 10,
+        bins: { excellent: 1, good: 0, average: 0, below_average: 0 },
+      },
+      students: [
+        {
+          student_id: "s1",
+          roster_code: "HS001",
+          full_name: "Nguyễn Văn An",
+          attempt_id: "att1",
+          attempt_state: "SUBMITTED",
+          status_label: "Đã nộp bài",
+          submission_id: "sub1",
+          submitted_at: "2026-11-08T10:14:00Z",
+          snapshot_hash: "abcdef1234567890abcdef",
+          raw_correct: 1,
+          total_questions: 1,
+          earned_points: 1,
+          max_points: 1,
+          score_10: 10,
+          score_version: 1,
+          regrade_count: 0,
+          receipt_code: null,
+          receipt_version: 0,
+          open_incidents: 0,
+        },
+      ],
+      grade_runs: [
+        {
+          id: "gr1",
+          run_number: 1,
+          code_version: "scoring-v1.0",
+          reason: "Chấm lần đầu",
+          created_at: "2026-11-08T10:20:00Z",
+        },
+      ],
+      questions: [],
+    });
+    vi.spyOn(auditApi, "verifyChain").mockResolvedValue({
+      valid: true,
+      event_count: 5,
+      broken_event_id: null,
+      limitation_note: "Chuỗi hash SHA-256 hợp lệ cục bộ.",
+      recent_events: [],
+    });
+    vi.spyOn(resultsApi, "getStudentTrace").mockResolvedValue({
+      exam: { exam_id: "ex-res-1", room_code: "RES01", title: "Kiểm tra Toán Học kỳ 1", status: "REVIEWED", seed: 99 },
+      student: { student_id: "s1", roster_code: "HS001", full_name: "Nguyễn Văn An" },
+      attempt: null,
+      submission: { submission_id: "sub1", submission_mode: "student_submit", snapshot_hash: "abcdef1234567890", submitted_at: "2026-11-08T10:14:00Z", answer_snapshot: {} },
+      permutation_seed: 12345,
+      questions: [],
+      answer_revisions: [],
+      score_versions: [
+        {
+          id: "sv1",
+          version: 1,
+          score_10: 10,
+          raw_correct: 1,
+          total_questions: 1,
+          earned_points: 1,
+          max_points: 1,
+          reason: "Chấm lần đầu",
+          supersedes_id: null,
+          is_current: true,
+          created_at: "2026-11-08T10:20:00Z",
+        },
+      ],
+      receipt_versions: [],
+      presence_events: [],
+      incidents: [],
+      audit_events: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/results"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Chấm điểm, Công bố Kết quả & Phúc khảo")).toBeInTheDocument();
+    expect(await screen.findByText("Chuỗi Audit hợp lệ (5 sự kiện)")).toBeInTheDocument();
+    expect(screen.getByText("Nguyễn Văn An")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Công bố điểm & Đáp án/i }));
+    expect(await screen.findByText("Xác nhận Công bố Điểm & Đáp án?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hủy bỏ" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Xem vết phúc khảo/i }));
+    expect(await screen.findByText(/Hồ sơ Phúc khảo — HS001 · Nguyễn Văn An/i)).toBeInTheDocument();
+  });
+
+  it("renders S7 student published result with superseded update banner on /join", async () => {
+    window.sessionStorage.setItem("eg_student_token", "tok-pub");
+    vi.spyOn(roomApi, "getMyAttempt").mockResolvedValue({
+      attempt_id: "att-pub",
+      exam_id: "ex-pub",
+      room_code: "PUB01",
+      exam_title: "Kiểm tra Sử",
+      exam_status: "PUBLISHED",
+      student_id: "s1",
+      student_name: "Trần Thu Hà",
+      roster_code: "HS005",
+      state: "SUBMITTED",
+      submitted_at: "2026-11-08T11:00:00Z",
+    });
+    vi.spyOn(studentResultApi, "getMyResult").mockResolvedValue({
+      exam_id: "ex-pub",
+      exam_title: "Kiểm tra Sử",
+      room_code: "PUB01",
+      exam_status: "PUBLISHED",
+      attempt_id: "att-pub",
+      student_name: "Trần Thu Hà",
+      roster_code: "HS005",
+      score_10: 10,
+      raw_correct: 1,
+      total_questions: 1,
+      earned_points: 1,
+      max_points: 1,
+      score_version: 2,
+      regrade_reason: "Cập nhật đáp án câu 1",
+      receipt_code: "EG-PUB01-HS005",
+      receipt_version: 2,
+      superseded_previous: true,
+      document_sha256: "abcdef1234567890abcdef1234567890",
+      snapshot_hash: "112233445566",
+      submitted_at: "2026-11-08T11:00:00Z",
+      published_at: "2026-11-08T11:10:00Z",
+      questions: [
+        {
+          position: 1,
+          question_version_id: "qv1",
+          blocks: [{ type: "text", text: "Chiến thắng Điện Biên Phủ năm nào?" }],
+          options: [
+            { option_id: "o1", display_label: "A", blocks: [{ type: "text", text: "1954" }] },
+          ],
+          selected_option_ids: ["o1"],
+          correct_option_ids: ["o1"],
+          is_correct: true,
+          earned_points: 1,
+          weight: 1,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/join"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Có kết quả cập nhật \(Biên nhận v2\)/i)).toBeInTheDocument();
+    expect(screen.getByText("10.00")).toBeInTheDocument();
+    expect(screen.getByText("Chiến thắng Điện Biên Phủ năm nào?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tải biên nhận PDF" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Tải thẻ chia sẻ PNG/i })
+    ).toBeInTheDocument();
   });
 });

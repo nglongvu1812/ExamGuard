@@ -73,16 +73,16 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-501 | TODO | Pure scoring implementation and unit tests |
-| EG-502 | TODO | Key/rubric versioning and regrade run records |
-| EG-503 | TODO | Append-only audit events + chain validation |
-| EG-504 | TODO | Closed/reviewed/published gate and negative API tests |
-| EG-505 | TODO | Student result review UI with own answer vs correct key after publication |
-| EG-506 | TODO | Personal PDF receipt + PNG share card with masked PII |
-| EG-507 | TODO | Receipt version/supersession after score changes |
-| EG-508 | TODO | Excel export with formula injection protection and statistical accuracy |
-| EG-509 | TODO | Phúc khảo trace report: exam/answers/key/score/events |
-| EG-510 | TODO | E2E publish/regrade/cross-student security tests |
+| EG-501 | DONE | Pure scoring implementation and unit tests |
+| EG-502 | DONE | Key/rubric versioning and regrade run records |
+| EG-503 | DONE | Append-only audit events + chain validation |
+| EG-504 | DONE | Closed/reviewed/published gate and negative API tests |
+| EG-505 | DONE | Student result review UI with own answer vs correct key after publication |
+| EG-506 | DONE | Personal PDF receipt + PNG share card with masked PII |
+| EG-507 | DONE | Receipt version/supersession after score changes |
+| EG-508 | DONE | Excel export with formula injection protection and statistical accuracy |
+| EG-509 | DONE | Phúc khảo trace report: exam/answers/key/score/events |
+| EG-510 | DONE | E2E publish/regrade/cross-student security tests |
 
 ## P6 — Paper/extended converter
 

@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, ShieldCheck, Wifi, WifiOff } from "lucide-react";
 import { roomApi, type AttemptStatusResponse, type HealthResponse } from "../../api/client";
 import { StatusBadge } from "../../components/StatusBadge";
 import { StudentExamPage } from "./StudentExamPage";
+import { StudentResultPage } from "./StudentResultPage";
 
 interface StudentJoinShellProps {
   health: HealthResponse | null;
@@ -107,6 +108,10 @@ export function StudentJoinShell({ health, healthError }: StudentJoinShellProps)
     window.sessionStorage.setItem("eg_student_token", newToken);
     setStudentToken(newToken);
   }, []);
+
+  if (attempt && studentToken && attempt.exam_status === "PUBLISHED") {
+    return <StudentResultPage studentToken={studentToken} onLeave={handleLeave} />;
+  }
 
   if (
     attempt &&

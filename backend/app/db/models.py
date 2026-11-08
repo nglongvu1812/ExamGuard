@@ -117,6 +117,8 @@ class Exam(Base):
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     paused_total_s: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     policy_json: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -339,7 +341,11 @@ class AnswerKeyVersion(Base):
     question_version_id: Mapped[str] = mapped_column(
         ForeignKey("question_versions.id"), nullable=False, index=True
     )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     correct_option_ids_json: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(
+        String(300), nullable=False, default="Khởi tạo khi duyệt câu hỏi"
+    )
     approved_by: Mapped[int] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=False)
     approved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -480,3 +486,83 @@ class Incident(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_by: Mapped[int | None] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=True)
     resolution_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+
+class GradeRun(Base):
+    """Immutable grading provenance snapshot capturing code, rubric, and answer keys used."""
+
+    __tablename__ = "grade_runs"
+    __table_args__ = (UniqueConstraint("exam_id", "run_number", name="uq_grade_run_exam_number"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    run_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    code_version: Mapped[str] = mapped_column(String(48), nullable=False, default="scoring-v1.0")
+    rubric_version_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    key_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    reason: Mapped[str] = mapped_column(String(300), nullable=False, default="Chấm điểm tự động")
+    triggered_by: Mapped[int] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class ScoreVersion(Base):
+    """Append-only student score version linked to its immutable Submission and GradeRun."""
+
+    __tablename__ = "score_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    submission_id: Mapped[str] = mapped_column(
+        ForeignKey("submissions.id"), nullable=False, index=True
+    )
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    grade_run_id: Mapped[str] = mapped_column(ForeignKey("grade_runs.id"), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    raw_correct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_questions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    earned_points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    score_10: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    breakdown_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    reason: Mapped[str] = mapped_column(String(300), nullable=False, default="Chấm lần đầu")
+    supersedes_id: Mapped[str | None] = mapped_column(
+        ForeignKey("score_versions.id"), nullable=True
+    )
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class ReceiptVersion(Base):
+    """Published personal result receipt version with PDF/PNG artifact hashes and supersession."""
+
+    __tablename__ = "receipt_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    score_version_id: Mapped[str] = mapped_column(
+        ForeignKey("score_versions.id"), nullable=False, index=True
+    )
+    receipt_code: Mapped[str] = mapped_column(String(48), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    pdf_relpath: Mapped[str] = mapped_column(String(255), nullable=False)
+    png_relpath: Mapped[str] = mapped_column(String(255), nullable=False)
+    document_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    supersedes_id: Mapped[str | None] = mapped_column(
+        ForeignKey("receipt_versions.id"), nullable=True
+    )
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

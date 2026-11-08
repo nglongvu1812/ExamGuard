@@ -51,6 +51,9 @@ def _collect_record_counts(db: Session) -> dict[str, int]:
         "attempts",
         "answer_revisions",
         "submissions",
+        "grade_runs",
+        "score_versions",
+        "receipt_versions",
         "audit_events",
     ]
     counts: dict[str, int] = {}
@@ -98,7 +101,11 @@ def create_full_backup(
         with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             zf.write(db_copy_path, "examguard.db")
 
-            for folder_name, base_dir in [("sources", settings.sources_dir), ("assets", settings.assets_dir)]:
+            for folder_name, base_dir in [
+                ("sources", settings.sources_dir),
+                ("assets", settings.assets_dir),
+                ("receipts", settings.receipts_dir),
+            ]:
                 if base_dir.exists():
                     for p in base_dir.rglob("*"):
                         if p.is_file():
@@ -283,7 +290,11 @@ def restore_backup_archive(
         # Restore sources & assets non-destructively (add/update files)
         import shutil
 
-        for folder, dest_root in [("sources", settings.sources_dir), ("assets", settings.assets_dir)]:
+        for folder, dest_root in [
+            ("sources", settings.sources_dir),
+            ("assets", settings.assets_dir),
+            ("receipts", settings.receipts_dir),
+        ]:
             extracted_dir = tmp_dir / folder
             if extracted_dir.is_dir():
                 dest_root.mkdir(parents=True, exist_ok=True)

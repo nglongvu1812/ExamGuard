@@ -10,8 +10,8 @@ import { StudentJoinShell } from "./pages/student/StudentJoinShell";
 import { ClassesPage } from "./pages/teacher/ClassesPage";
 import { DashboardPage } from "./pages/teacher/DashboardPage";
 import { LanHelpPage } from "./pages/teacher/LanHelpPage";
-import { PlaceholderSection } from "./pages/teacher/PlaceholderSection";
 import { QuestionBankPage } from "./pages/teacher/QuestionBankPage";
+import { ResultsAuditPage } from "./pages/teacher/ResultsAuditPage";
 import { SettingsBackupPage } from "./pages/teacher/SettingsBackupPage";
 import { WaitingRoomPage } from "./pages/teacher/WaitingRoomPage";
 
@@ -80,16 +80,7 @@ export function AppRoutes() {
               <Route path="/classes" element={<ClassesPage />} />
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/exams/new" element={<WaitingRoomPage />} />
-              <Route
-                path="/results"
-                element={
-                  <PlaceholderSection
-                    title="Lịch sử & kết quả kiểm tra"
-                    description="Chấm bài tự động, phê duyệt công bố điểm, xuất bảng điểm Excel/PDF và xử lý phúc khảo có lưu vết."
-                    phaseLabel="Phase P5"
-                  />
-                }
-              />
+              <Route path="/results" element={<ResultsAuditPage />} />
               <Route
                 path="/settings"
                 element={<SettingsBackupPage health={health} />}

@@ -52,6 +52,10 @@ class Settings(BaseSettings):
         return self.data_dir / "logs"
 
     @property
+    def receipts_dir(self) -> Path:
+        return self.data_dir / "receipts"
+
+    @property
     def database_url(self) -> str:
         return f"sqlite:///{self.db_path.as_posix()}"
 
@@ -63,6 +67,7 @@ class Settings(BaseSettings):
             self.sources_dir,
             self.backups_dir,
             self.logs_dir,
+            self.receipts_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
         probe = self.data_dir / ".write_probe"

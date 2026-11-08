@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
+  Award,
   CheckCheck,
   Clock,
   Eye,
@@ -767,6 +769,15 @@ export function WaitingRoomPage() {
                     <span>Đóng phòng thu bài</span>
                   </button>
                 </>
+              ) : null}
+              {["CLOSED", "REVIEWED", "PUBLISHED"].includes(activeRoom.status) ? (
+                <Link
+                  to={`/results?examId=${encodeURIComponent(activeRoom.exam_id)}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1E3A5F] px-3.5 py-1.5 text-xs font-semibold text-white"
+                >
+                  <Award className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Chấm điểm & Công bố</span>
+                </Link>
               ) : null}
             </div>
           </div>

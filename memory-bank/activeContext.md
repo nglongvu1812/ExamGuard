@@ -2,9 +2,9 @@
 
 ## Current focus
 
-- Phase: P5 — Scoring, Audit, Publication, Receipts (`EG-501`..`EG-510`).
-- Objective: Triển khai động cơ chấm điểm thuần túy xác thực từ `Submission` + `AnswerKeyVersion`, chu trình kiểm duyệt và công bố (`CLOSED -> REVIEWED -> PUBLISHED`), chấm lại tạo `GradeRun` + `ScoreVersion` (`supersedes_id`) có lý do & audit, chặn tuyệt đối truy cập đáp án/điểm trước `PUBLISHED`, xác minh chuỗi hash `AuditEvent`, xuất bảng điểm Excel (chống formula injection), xuất biên nhận PDF (font Việt bundled offline) / PNG share card (che thông tin nhạy cảm), phúc khảo & xem kết quả học sinh (`T7`, `T8`, `S7`).
+- Phase: P6 — Paper Bridge & Extended Converter (`EG-601`..`EG-609`).
+- Objective: Triển khai sinh nhiều mã đề giấy định danh rõ (tái sử dụng hoán vị xác định `option_id`), xuất PDF A4 đề in + đáp án offline, sinh phiếu OMR có ô đánh dấu 4 góc + SBD/Mã đề/câu hỏi, xử lý ảnh chụp/scan OMR (crop, deskew nhẹ, đo mật độ tô & độ tin cậy), giao diện giáo viên duyệt bài OMR mơ hồ & lưu ảnh gốc bất biến, đưa điểm thi giấy vào lịch sử chấm chung, mở rộng converter hỗ trợ `.pdf` (cột/hình ảnh/vector crop) và `.xlsx` teacher profile kèm báo cáo benchmark + đánh giá OCR cục bộ.
 
 ## Last completed work
 
-- 2026-11-08: Hoàn thành Phase P4 (`EG-401`..`EG-406`, `EG-408` DONE; `EG-407` REVIEW). `tools/verify.ps1` PASS (22/22 pytest, 8/8 vitest, ruff, mypy, eslint, tsc, vite build). Báo cáo tại `docs/phase-reports/PHASE_P4_REPORT.md` và `docs/MONITORING_MATRIX.md`.
+- 2026-11-08: Hoàn thành Phase P5 (`EG-501`..`EG-510` DONE). `tools/verify.ps1` PASS (26/26 pytest, 10/10 vitest, ruff, mypy, eslint, tsc, vite build). Báo cáo tại `docs/phase-reports/PHASE_P5_REPORT.md`.

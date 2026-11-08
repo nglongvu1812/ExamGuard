@@ -275,7 +275,7 @@ def list_approved_questions(db: Session) -> list[tuple[Question, QuestionVersion
         kv = db.execute(
             select(AnswerKeyVersion)
             .where(AnswerKeyVersion.question_version_id == qv.id)
-            .order_by(AnswerKeyVersion.approved_at.desc())
+            .order_by(AnswerKeyVersion.version_number.desc(), AnswerKeyVersion.approved_at.desc())
             .limit(1)
         ).scalar_one_or_none()
         if kv is None:
