@@ -13,6 +13,12 @@
 | P6 Paper/OMR | PASS | EG-601..EG-609 DONE, 29/29 pytest + 11/11 vitest pass; benchmark measured |
 | P7 Release/Pilot | PASS (EG-701, EG-711 REVIEW) | EG-702..EG-710, EG-712 DONE; 33/33 pytest + 11/11 vitest pass; Portable build & load test measured |
 
+2026-11-08 — Hotfix & UX Hardening (Room management & Favicon)
+- Fix phòng chờ kẹt trạng thái: loại bỏ danh sách "Phòng thi gần đây", ưu tiên chọn phòng thi đang hoạt động (WAITING/RUNNING), thêm nút "Hủy phòng chờ" và "Xóa phòng thi" (cascade sạch CSDL, endpoint DELETE /api/v1/exams/{exam_id}).
+- Lưu trữ và tự động nạp lại mã tham gia học sinh: migration 0008, GET /api/v1/rooms/{exam_id}/invites, UI tự động hiển thị bảng mã cấp cho học sinh ngay khi mở phòng chờ.
+- Cấu hình favicon định tuyến tường minh và cache-busting (?v=2).
+- Verification: 34/34 pytest, 11/11 vitest, ruff, mypy, eslint, tsc, vite build PASS. Đóng gói lại thành công file portable EXE và release ZIP.
+
 2026-11-08 — P7 (`EG-701`..`EG-712`)
 Implemented: PyInstaller onedir spec & `build_portable.ps1`, launcher dynamic bundle paths + UTF-8 console stream, atomic staging backup with `HTTP 507` on disk full, `load_test.py` 45-client concurrent benchmark tool, `test_p7_resilience_and_recovery.py` (zero-CDN audit, crash WAL recovery, cross-PC full restore, permission/ENOSPC safety), runbooks (`LAN_AP_GUIDE.md`, `TEACHER_QUICKSTART.md`, `STUDENT_QUICKSTART.md`), `RELEASE_CHECKLIST.md` (59 Python libs audit, 0 AGPL), and `CHANGELOG.md`.
 Verification: `tools/verify.ps1` (33/33 pytest, 11/11 vitest, ruff, mypy 41 files + desktop/tools, eslint, tsc, vite build PASS) + live cold-boot smoke test on Windows 11 (0 WAN sockets) + 45-client load benchmark (3 replicates, p95 save 727.9ms, 0 lost ACK, 45/45 submitted).

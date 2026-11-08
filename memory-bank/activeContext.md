@@ -7,6 +7,24 @@
 
 ## Last completed work
 
+- 2026-11-08: Tinh chỉnh phòng chờ, xóa phòng thi, bảo toàn mã học sinh và cấu hình favicon:
+  - Backend:
+    - Bổ sung Alembic migration `0008_student_invite_plaintext_code.py` và cột `invite_code` trên bảng `student_invites`.
+    - Cập nhật `create_waiting_room_session` và `_transition_to_waiting_and_issue_invites` lưu mã dự thi dạng bản rõ để giáo viên có thể tra cứu và hiển thị lại bất cứ khi nào cần.
+    - Bổ sung endpoint `GET /api/v1/rooms/{exam_id}/invites` trả về danh sách mã tham gia còn hiệu lực cho phòng thi.
+    - Bổ sung `delete_exam_session` và endpoint `DELETE /api/v1/exams/{exam_id}` xóa cascade toàn bộ dữ liệu phụ thuộc (bài làm, thiết bị, sự cố, bản ghi phúc khảo, điểm số, bài nộp) kèm ghi nhật ký audit.
+    - Cung cấp định tuyến `/favicon.ico` và `/favicon.svg` tường minh trên FastAPI backend.
+  - Frontend:
+    - Loại bỏ hoàn toàn thanh "Phòng thi gần đây" trên giao diện phòng chờ để loại trừ xung đột giao diện và tránh kẹt phòng cũ.
+    - Sửa thuật toán chọn phòng tự động (`loadBase`): ưu tiên phòng đang mở (`WAITING`/`RUNNING`), không giữ phòng đã hủy (`CANCELLED`).
+    - Tự động nạp mã dự thi (`roomApi.getRoomInvites`) khi phòng ở trạng thái `WAITING`, hiển thị bảng mã cấp cho học sinh ngay khi mở phòng.
+    - Bổ sung nút màu đỏ "Xóa phòng thi" (có hộp thoại xác nhận an toàn) cho mọi phòng chờ, phòng đã hủy hoặc phòng đã kết thúc.
+    - Cập nhật `index.html` với cache-busting query `?v=2` cho icon/favicon.
+  - Đóng gói & Phát hành:
+    - Toàn bộ pipeline `verify.ps1` (ruff, mypy, 34 bài pytest, eslint, tsc, 11 bài vitest, vite build) PASS 100%.
+    - Đóng gói lại thành công `ExamGuard.exe` và `dist/release/ExamGuard-v0.1.0-beta.1-win64-portable.zip`.
+
+
 - 2026-11-08: Sửa lỗi xung đột phòng chờ và hỗ trợ giáo viên vào lại phòng chờ:
   - Backend:
     - Bổ sung `cancel_exam_session` và endpoint `POST /api/v1/exams/{exam_id}/cancel`.
