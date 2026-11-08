@@ -505,6 +505,9 @@ export const examApi = {
   listExams(): Promise<ExamDetailDTO[]> {
     return fetchJson<ExamDetailDTO[]>("/api/v1/exams", undefined, "teacher");
   },
+  getActiveExam(): Promise<ExamDetailDTO | null> {
+    return fetchJson<ExamDetailDTO | null>("/api/v1/exams/active", undefined, "teacher");
+  },
   getExam(examId: string): Promise<ExamDetailDTO> {
     return fetchJson<ExamDetailDTO>(`/api/v1/exams/${examId}`, undefined, "teacher");
   },
@@ -540,6 +543,13 @@ export const examApi = {
   closeExam(examId: string, reason: string): Promise<ExamDetailDTO> {
     return fetchJson<ExamDetailDTO>(
       `/api/v1/exams/${examId}/close`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+      "teacher"
+    );
+  },
+  cancelExam(examId: string, reason: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(
+      `/api/v1/exams/${examId}/cancel`,
       { method: "POST", body: JSON.stringify({ reason }) },
       "teacher"
     );

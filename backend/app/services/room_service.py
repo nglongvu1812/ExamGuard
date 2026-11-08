@@ -59,6 +59,30 @@ def create_waiting_room_session(
     if classroom is None or classroom.teacher_id != teacher_id:
         raise HTTPException(status_code=404, detail="Không tìm thấy lớp học.")
 
+    # Single Active Room Policy: Automatically cancel any stale WAITING room in this classroom
+    # to prevent room code confusion and student invite collision.
+    stale_waiting = (
+        db.execute(
+            select(Exam).where(
+                Exam.classroom_id == classroom_id,
+                Exam.status == "WAITING",
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for stale in stale_waiting:
+        stale.status = "CANCELLED"
+        record_audit_event(
+            db,
+            actor_type="system",
+            actor_id="server",
+            action="AUTO_CANCEL_STALE_WAITING_ROOM",
+            target_type="exam",
+            target_id=stale.id,
+            details={"reason": "Hủy tự động do giáo viên mở phòng chờ mới cho lớp."},
+        )
+
     room_code = _generate_room_code()
     while db.execute(select(Exam).where(Exam.room_code == room_code)).scalar_one_or_none():
         room_code = _generate_room_code()

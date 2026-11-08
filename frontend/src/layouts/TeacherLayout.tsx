@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Tổng quan", icon: Home, end: true },
   { to: "/classes", label: "Lớp học", icon: Users, end: false },
   { to: "/questions", label: "Ngân hàng đề", icon: BookOpen, end: false },
-  { to: "/exams/new", label: "Tạo bài kiểm tra", icon: FilePlus2, end: false },
+  { to: "/exams/new", label: "Phòng thi & Đề", icon: FilePlus2, end: false },
   { to: "/paper", label: "Đề giấy & OMR", icon: Printer, end: false },
   { to: "/results", label: "Lịch sử & Kết quả", icon: BarChart3, end: false },
   { to: "/settings", label: "Sao lưu / Cài đặt", icon: DatabaseBackup, end: false },

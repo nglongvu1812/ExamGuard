@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   AlertCircle,
   Award,
@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sliders,
   Square,
+  Trash2,
   Users,
   Wifi,
   WifiOff,
@@ -44,6 +45,7 @@ function formatClock(totalSeconds: number): string {
 }
 
 export function WaitingRoomPage() {
+  const { examId: routeExamId } = useParams<{ examId?: string }>();
   const [classes, setClasses] = useState<ClassroomDTO[]>([]);
   const [bankQuestions, setBankQuestions] = useState<ApprovedQuestionDTO[]>([]);
   const [rooms, setRooms] = useState<RoomSummaryDTO[]>([]);
@@ -81,10 +83,11 @@ export function WaitingRoomPage() {
 
   const loadBase = useCallback(async () => {
     try {
-      const [clsList, bankList, roomList] = await Promise.all([
+      const [clsList, bankList, roomList, activeExam] = await Promise.all([
         rosterApi.listClasses(),
         questionApi.listBank(),
         roomApi.listRooms(),
+        examApi.getActiveExam().catch(() => null),
       ]);
       setClasses(clsList);
       setBankQuestions(bankList);
@@ -95,16 +98,42 @@ export function WaitingRoomPage() {
       if (bankList.length > 0 && selectedQIds.length === 0) {
         setSelectedQIds(bankList.map((b) => b.version_id));
       }
+
+      // Priority 1: Match route param :examId
+      if (routeExamId) {
+        const fromRoute = roomList.find((r) => r.exam_id === routeExamId);
+        if (fromRoute) {
+          setActiveRoom(fromRoute);
+          return;
+        }
+      }
+
+      // Priority 2: Keep current active room if valid
+      if (activeRoom) {
+        const refreshed = roomList.find((r) => r.exam_id === activeRoom.exam_id);
+        if (refreshed) {
+          setActiveRoom(refreshed);
+          return;
+        }
+      }
+
+      // Priority 3: Auto-select active WAITING or RUNNING exam
+      if (activeExam) {
+        const matched = roomList.find((r) => r.exam_id === activeExam.exam_id);
+        if (matched) {
+          setActiveRoom(matched);
+          return;
+        }
+      }
+
+      // Priority 4: Fall back to most recent room
       if (roomList.length > 0 && !activeRoom) {
         setActiveRoom(roomList[0] ?? null);
-      } else if (activeRoom) {
-        const refreshed = roomList.find((r) => r.exam_id === activeRoom.exam_id);
-        if (refreshed) setActiveRoom(refreshed);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được dữ liệu cấu hình phòng thi.");
     }
-  }, [selectedClassId, activeRoom, selectedQIds.length]);
+  }, [selectedClassId, activeRoom, selectedQIds.length, routeExamId]);
 
   const loadMonitoringSnapshot = useCallback(async (examId: string) => {
     try {
@@ -292,6 +321,26 @@ export function WaitingRoomPage() {
       await loadMonitoringSnapshot(activeRoom.exam_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể đóng phòng thi.");
+    }
+  };
+
+  const handleCancelExam = async () => {
+    if (!activeRoom) return;
+    if (
+      !window.confirm(
+        `Xác nhận HỦY / XÓA phòng chờ ${activeRoom.room_code}? Học sinh sẽ không thể tham gia vào phòng này nữa.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await examApi.cancelExam(activeRoom.exam_id, "Giáo viên hủy phòng chờ cũ");
+      setNotice(`Đã hủy thành công phòng chờ ${activeRoom.room_code}.`);
+      setInvites([]);
+      setSnapshot(null);
+      await loadBase();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể hủy phòng chờ.");
     }
   };
 
@@ -729,15 +778,26 @@ export function WaitingRoomPage() {
                 <span>Duyệt tất cả chờ</span>
               </button>
               {activeRoom.status === "WAITING" ? (
-                <button
-                  type="button"
-                  disabled={(activeRoom.question_count ?? 0) === 0}
-                  onClick={() => void handleStartExam()}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F766E] px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                >
-                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Bắt đầu làm bài</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={(activeRoom.question_count ?? 0) === 0}
+                    onClick={() => void handleStartExam()}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F766E] px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Bắt đầu làm bài</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleCancelExam()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                    title="Hủy phòng chờ hiện tại để tránh xung đột mã phòng"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Hủy phòng chờ này</span>
+                  </button>
+                </>
               ) : null}
               {activeRoom.status === "RUNNING" ? (
                 <>

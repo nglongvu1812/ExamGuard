@@ -354,3 +354,69 @@ def test_concurrent_join_race_produces_single_attempt(tmp_path: Path) -> None:
         with app.state.session_factory() as db:
             rows = db.execute(select(Attempt)).scalars().all()
             assert len(rows) == 1
+
+
+def test_waiting_room_cancellation_and_active_exam_endpoint(tmp_path: Path) -> None:
+    """Verifies that an active WAITING room can be retrieved and cancelled without leaving conflicts."""
+    app = create_app(Settings(data_dir=tmp_path / "Data"))
+    with TestClient(app) as client:
+        headers = _teacher_headers(client)
+        cls_id = client.post(
+            "/api/v1/classes",
+            json={"name": "12A9", "academic_year": "2026-2027"},
+            headers=headers,
+        ).json()["id"]
+        client.post(
+            f"/api/v1/classes/{cls_id}/students",
+            json={"roster_code": "HS901", "full_name": "Trần Active"},
+            headers=headers,
+        )
+
+        # 1. No active exam initially
+        act_res = client.get("/api/v1/exams/active", headers=headers)
+        assert act_res.status_code == 200
+        assert act_res.json() is None
+
+        # 2. Create room 1
+        r1 = client.post(
+            "/api/v1/rooms",
+            json={"classroom_id": cls_id, "title": "Room 1", "duration_s": 600},
+            headers=headers,
+        ).json()
+        exam1_id = r1["room"]["exam_id"]
+
+        act_res = client.get("/api/v1/exams/active", headers=headers)
+        assert act_res.status_code == 200
+        assert act_res.json()["exam_id"] == exam1_id
+        assert act_res.json()["status"] == "WAITING"
+
+        # 3. Create room 2 for the same class -> Room 1 should auto-cancel
+        r2 = client.post(
+            "/api/v1/rooms",
+            json={"classroom_id": cls_id, "title": "Room 2", "duration_s": 900},
+            headers=headers,
+        ).json()
+        exam2_id = r2["room"]["exam_id"]
+
+        act_res = client.get("/api/v1/exams/active", headers=headers)
+        assert act_res.status_code == 200
+        assert act_res.json()["exam_id"] == exam2_id
+
+        # Verify room 1 was cancelled
+        exam1_detail = client.get(f"/api/v1/exams/{exam1_id}", headers=headers).json()
+        assert exam1_detail["status"] == "CANCELLED"
+
+        # 4. Explicit cancel room 2
+        cancel_res = client.post(
+            f"/api/v1/exams/{exam2_id}/cancel",
+            json={"reason": "Giáo viên chủ động hủy phòng"},
+            headers=headers,
+        )
+        assert cancel_res.status_code == 200
+        assert cancel_res.json()["status"] == "CANCELLED"
+
+        # 5. Now active should be None again
+        act_res = client.get("/api/v1/exams/active", headers=headers)
+        assert act_res.status_code == 200
+        assert act_res.json() is None
+

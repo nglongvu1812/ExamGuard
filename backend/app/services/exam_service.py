@@ -186,6 +186,31 @@ def create_configured_exam(
     if open_waiting:
         if not server_secret:
             raise HTTPException(status_code=500, detail="Thiếu khóa ký mã mời cục bộ.")
+
+        # Single Active Room Policy: cancel any stale WAITING room in this classroom
+        stale_waiting = (
+            db.execute(
+                select(Exam).where(
+                    Exam.classroom_id == classroom_id,
+                    Exam.status == "WAITING",
+                    Exam.id != exam.id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for stale in stale_waiting:
+            stale.status = "CANCELLED"
+            record_audit_event(
+                db,
+                actor_type="system",
+                actor_id="server",
+                action="AUTO_CANCEL_STALE_WAITING_ROOM",
+                target_type="exam",
+                target_id=stale.id,
+                details={"reason": "Hủy tự động do giáo viên cấu hình phòng chờ mới cho lớp."},
+            )
+
         issued = _transition_to_waiting_and_issue_invites(
             db,
             exam=exam,
@@ -618,3 +643,28 @@ def close_exam_session(db: Session, *, exam_id: str, reason: str, teacher_id: in
     db.commit()
     db.refresh(exam)
     return exam
+
+
+def cancel_exam_session(db: Session, *, exam_id: str, reason: str, teacher_id: int) -> Exam:
+    """Cancel an exam in DRAFT, READY, or WAITING state (or RUNNING if teacher aborts)."""
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỳ thi.")
+    validate_exam_transition(exam.status, "CANCELLED")
+
+    exam.status = "CANCELLED"
+    clean_reason = reason.strip() or "Giáo viên hủy phòng chờ"
+
+    record_audit_event(
+        db,
+        actor_type="teacher",
+        actor_id=str(teacher_id),
+        action="CANCEL_EXAM",
+        target_type="exam",
+        target_id=exam.id,
+        details={"reason": clean_reason, "cancelled_at": datetime.now(UTC).isoformat()},
+    )
+    db.commit()
+    db.refresh(exam)
+    return exam
+

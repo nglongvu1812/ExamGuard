@@ -26,6 +26,7 @@ from app.services.backup_service import (
 )
 from app.services.exam_service import (
     attach_questions_to_exam,
+    cancel_exam_session,
     close_exam_session,
     compute_remaining_seconds,
     create_configured_exam,
@@ -152,6 +153,27 @@ def _exam_to_dto(db: Session, exam: Exam) -> ExamDetailDTO:
         closed_at=exam.closed_at.isoformat() if exam.closed_at else None,
         policy=json.loads(exam.policy_json or "{}"),
     )
+
+
+@router.get("/exams/active", response_model=ExamDetailDTO | None)
+def get_active_exam(
+    _teacher: TeacherPrincipal = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ExamDetailDTO | None:
+    """Return the currently active exam session (WAITING or RUNNING) if one exists."""
+    active = (
+        db.execute(
+            select(Exam)
+            .where(Exam.status.in_(["RUNNING", "WAITING"]))
+            .order_by(Exam.created_at.desc())
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+    if active is None:
+        return None
+    return _exam_to_dto(db, active)
 
 
 @router.get("/exams", response_model=list[ExamDetailDTO])
@@ -326,6 +348,21 @@ async def post_close_exam(
     exam = close_exam_session(db, exam_id=exam_id, reason=reason, teacher_id=teacher.teacher_id)
     await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
+
+
+@router.post("/exams/{exam_id}/cancel", response_model=ExamDetailDTO)
+async def post_cancel_exam(
+    exam_id: str,
+    request: Request,
+    payload: ExamControlReasonRequest | None = None,
+    teacher: TeacherPrincipal = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> ExamDetailDTO:
+    reason = payload.reason if payload else "Giáo viên hủy phòng chờ"
+    exam = cancel_exam_session(db, exam_id=exam_id, reason=reason, teacher_id=teacher.teacher_id)
+    await _broadcast_exam_transition(request, db, exam)
+    return _exam_to_dto(db, exam)
+
 
 
 # --- Student Exam Execution Endpoints (STRICTLY NO ANSWER KEY LEAK!) ---

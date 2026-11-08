@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -6,12 +6,13 @@ import {
   CheckCircle2,
   DatabaseBackup,
   FilePlus2,
+  Radio,
   RefreshCw,
   ShieldAlert,
   Users,
   Wifi,
 } from "lucide-react";
-import type { HealthResponse, NetworkStatusResponse } from "../../api/client";
+import { examApi, type ExamDetailDTO, type HealthResponse, type NetworkStatusResponse } from "../../api/client";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
@@ -29,6 +30,25 @@ export function DashboardPage({
   onRefresh,
 }: DashboardPageProps) {
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [activeExam, setActiveExam] = useState<ExamDetailDTO | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchActive = async () => {
+      try {
+        const act = await examApi.getActiveExam();
+        if (!cancelled) setActiveExam(act);
+      } catch {
+        if (!cancelled) setActiveExam(null);
+      }
+    };
+    void fetchActive();
+    const timer = setInterval(() => void fetchActive(), 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   const handleCopy = async () => {
     if (!network?.selected_url) return;
@@ -71,6 +91,37 @@ export function DashboardPage({
           </Link>
         </div>
       </div>
+
+      {/* Active Exam / Waiting Room Re-entry Banner */}
+      {activeExam ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-[#0F766E] bg-teal-50/90 p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0F766E] text-white">
+              <Radio className="h-5 w-5 animate-pulse" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#0F766E]">
+                {activeExam.status === "WAITING"
+                  ? "Phòng chờ đang mở"
+                  : activeExam.is_paused
+                  ? "Phòng thi đang tạm dừng"
+                  : "Phòng thi đang diễn ra"}
+              </p>
+              <h2 className="text-sm font-bold text-slate-900">
+                {activeExam.title} — Mã phòng:{" "}
+                <span className="font-mono text-base text-[#1E3A5F] font-black">{activeExam.room_code}</span>
+              </h2>
+            </div>
+          </div>
+          <Link
+            to={`/exams/${activeExam.exam_id}/waiting`}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#0F766E] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0c5f59]"
+          >
+            <span>Vào lại phòng thi</span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      ) : null}
 
       {/* Onboarding 3 steps for first-time teacher */}
       <section

@@ -7,6 +7,20 @@
 
 ## Last completed work
 
+- 2026-11-08: Sửa lỗi xung đột phòng chờ và hỗ trợ giáo viên vào lại phòng chờ:
+  - Backend:
+    - Bổ sung `cancel_exam_session` và endpoint `POST /api/v1/exams/{exam_id}/cancel`.
+    - Triển khai chính sách một phòng chờ hoạt động (`Single Active Room Policy`): tự động hủy phòng chờ cũ ở trạng thái `WAITING` của lớp khi giáo viên mở phòng chờ mới (ghi nhật ký audit rõ ràng).
+    - Thêm endpoint `GET /api/v1/exams/active` trả về phiên thi đang hoạt động (`WAITING` hoặc `RUNNING`).
+  - Frontend:
+    - `WaitingRoomPage`: Hỗ trợ route `/exams/:examId/waiting`, tự động phục hồi phòng thi đang hoạt động từ `getActiveExam()`, bổ sung nút "Hủy phòng chờ này" (có xác nhận) giúp giáo viên chủ động xóa phòng chờ cũ.
+    - `DashboardPage`: Bổ sung banner nổi bật hiển thị phòng thi/phòng chờ đang hoạt động kèm mã phòng và nút 1-click "Vào lại phòng thi" giúp giáo viên quay lại ngay lập tức khi vô tình rời trang.
+    - `TeacherLayout`: Cập nhật menu trực quan và linh hoạt.
+  - Kiểm thử & Chất lượng:
+    - Bổ sung bài kiểm thử `test_waiting_room_cancellation_and_active_exam_endpoint` trong `test_p1_roster_and_rooms.py`.
+    - Chạy toàn bộ pipeline xác minh `tools/verify.ps1` (ruff, mypy, 34 bài pytest, eslint, tsc, 11 bài vitest, vite build): tất cả PASS.
+
+
 - 2026-11-08: Hoàn thành Phase P7 (`EG-701`..`EG-712`).
   - Đóng gói PyInstaller onedir `ExamGuard.exe` (17.01 MB), bộ khởi chạy `ExamGuard.bat`, các tệp mẫu sẵn có (`samples/`), và nén bản phát hành portable `dist/release/ExamGuard-v0.1.0-beta.1-win64-portable.zip` (47.66 MB, SHA-256: `82c0803b96feb0cdcd3e5e8aef7419bf207f46139db70bade8f9ab5a7fb1edec`).
   - Khởi chạy lạnh thành công trên Microsoft Windows 11 Pro Build 28000; kiểm toán mạng xác nhận **0 kết nối WAN ra ngoài Internet** và 0 CDN ngoài.

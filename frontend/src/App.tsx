@@ -81,6 +81,7 @@ export function AppRoutes() {
               <Route path="/classes" element={<ClassesPage />} />
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/exams/new" element={<WaitingRoomPage />} />
+              <Route path="/exams/:examId/waiting" element={<WaitingRoomPage />} />
               <Route path="/paper" element={<PaperBridgePage />} />
               <Route path="/results" element={<ResultsAuditPage />} />
               <Route
