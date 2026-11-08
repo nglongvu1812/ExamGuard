@@ -21,6 +21,7 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.sessionStorage.clear();
+    window.sessionStorage.setItem("eg_teacher_token", "mock-teacher-token");
     vi.spyOn(systemApi, "getHealth").mockResolvedValue({
       status: "ok",
       app_name: "ExamGuard",

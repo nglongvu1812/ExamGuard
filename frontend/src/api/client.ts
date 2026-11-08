@@ -131,15 +131,45 @@ export interface JoinRoomResponse {
 
 let cachedTeacherToken: string | null = null;
 
-export async function ensureTeacherToken(): Promise<string> {
+export function getStoredTeacherToken(): string | null {
   if (cachedTeacherToken) return cachedTeacherToken;
-  const res = await fetch("/api/v1/auth/teacher/local-session", { method: "POST" });
-  if (!res.ok) {
-    throw new Error("Không thể xác thực phiên giáo viên trên máy chủ cục bộ.");
+  try {
+    const s = sessionStorage.getItem("eg_teacher_token");
+    if (s) {
+      cachedTeacherToken = s;
+      return s;
+    }
+  } catch {
+    // sessionStorage not available
   }
-  const data = (await res.json()) as { token: string };
-  cachedTeacherToken = data.token;
-  return cachedTeacherToken;
+  return null;
+}
+
+export function setStoredTeacherToken(token: string | null): void {
+  cachedTeacherToken = token;
+  try {
+    if (token) {
+      sessionStorage.setItem("eg_teacher_token", token);
+    } else {
+      sessionStorage.removeItem("eg_teacher_token");
+    }
+  } catch {
+    // sessionStorage not available
+  }
+}
+
+export function isTeacherLoggedIn(): boolean {
+  return !!getStoredTeacherToken();
+}
+
+export function teacherLogout(): void {
+  setStoredTeacherToken(null);
+}
+
+export async function ensureTeacherToken(): Promise<string> {
+  const stored = getStoredTeacherToken();
+  if (stored) return stored;
+  throw new Error("Phiên làm việc giáo viên chưa đăng nhập. Vui lòng nhập mã PIN.");
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit, authMode?: "teacher" | "student", studentToken?: string): Promise<T> {
@@ -175,6 +205,39 @@ async function fetchJson<T>(url: string, init?: RequestInit, authMode?: "teacher
   }
   return (await response.json()) as T;
 }
+
+export const authApi = {
+  async teacherLogin(pin: string): Promise<{ token: string; teacher_id: number; display_name: string }> {
+    const res = await fetch("/api/v1/auth/teacher/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
+    if (!res.ok) {
+      let detail = "Đăng nhập giáo viên thất bại.";
+      try {
+        const data = (await res.json()) as { detail?: string };
+        if (data.detail) detail = data.detail;
+      } catch {
+        // ignore parse
+      }
+      throw new Error(detail);
+    }
+    const data = (await res.json()) as { token: string; teacher_id: number; display_name: string };
+    setStoredTeacherToken(data.token);
+    return data;
+  },
+  async changeTeacherPin(currentPin: string, newPin: string): Promise<{ status: string; message: string }> {
+    return fetchJson<{ status: string; message: string }>(
+      "/api/v1/auth/teacher/change-pin",
+      {
+        method: "POST",
+        body: JSON.stringify({ current_pin: currentPin, new_pin: newPin }),
+      },
+      "teacher"
+    );
+  },
+};
 
 export const systemApi = {
   getHealth(): Promise<HealthResponse> {

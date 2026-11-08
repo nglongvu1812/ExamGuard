@@ -7,6 +7,21 @@
 
 ## Last completed work
 
+- 2026-11-08: Khắc phục triệt để lỗ hổng truy cập Admin từ điện thoại/mạng LAN:
+  - Vấn đề: Điện thoại truy cập root URL `/` hoặc mở qua cổng chuyển tiếp (adb reverse / proxy) trước đây bị render nhầm giao diện Admin hoặc cấp token tự động do chưa có mã PIN bảo vệ.
+  - Backend:
+    - Bổ sung xác thực mã PIN giáo viên (`POST /api/v1/auth/teacher/login` và `POST /api/v1/auth/teacher/change-pin`) với mã băm HMAC-SHA256, so sánh thời gian không đổi, và giới hạn tần suất nhập sai (`SlidingWindowRateLimiter`). Mã PIN ban đầu mặc định: `123456`.
+    - Cách ly mạng LAN (`serve_spa`): Mọi thiết bị kết nối từ mạng LAN (không phải loopback) truy cập vào `/` hoặc các đường dẫn giáo viên (`/classes`, `/exams`, v.v.) sẽ tự động bị chuyển hướng HTTP 307 trực tiếp sang `/join` (màn hình thi của học sinh).
+    - Endpoint `POST /api/v1/auth/teacher/login` và `local-session` từ mạng LAN bị từ chối 403 Forbidden nếu chưa bật cờ `allow_lan_teacher_console`.
+  - Frontend:
+    - Tạo trang `TeacherLoginPage` yêu cầu nhập mã PIN quản trị giáo viên mới được vào bàn làm việc.
+    - Điều hướng thông minh: Thiết bị di động mạng LAN mở root `/` tự động chuyển sang `/join`. Máy chủ PC mở `/` hiển thị form đăng nhập PIN.
+    - Bổ sung chức năng "Đổi mã PIN Giáo viên" trực tiếp tại trang `SettingsBackupPage`.
+    - Bổ sung nút "Đăng xuất Quản trị" trên thanh điều hướng sidebar và header.
+  - Kiểm thử & Phát hành:
+    - Bổ sung bài kiểm thử `test_teacher_pin_authentication_and_lan_boundary` (35/35 Pytest pass, 11/11 Vitest pass).
+    - Đóng gói bản Portable v0.1.1 `ExamGuard-v0.1.1-win64-portable.zip` (SHA-256: `ecb9655f2c3f30ea5074aa0e5db582973913936c62c7e94388890f6529cba07d`).
+
 - 2026-11-08: Tinh chỉnh phòng chờ, xóa phòng thi, bảo toàn mã học sinh và cấu hình favicon:
   - Backend:
     - Bổ sung Alembic migration `0008_student_invite_plaintext_code.py` và cột `invite_code` trên bảng `student_invites`.

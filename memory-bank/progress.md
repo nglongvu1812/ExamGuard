@@ -13,6 +13,12 @@
 | P6 Paper/OMR | PASS | EG-601..EG-609 DONE, 29/29 pytest + 11/11 vitest pass; benchmark measured |
 | P7 Release/Pilot | PASS (EG-701, EG-711 REVIEW) | EG-702..EG-710, EG-712 DONE; 33/33 pytest + 11/11 vitest pass; Portable build & load test measured |
 
+2026-11-08 — Security Fix: Chặn điện thoại/LAN vào Admin & Bảo vệ mã PIN Giáo viên
+- Triển khai bảo mật mã PIN Giáo viên: default PIN 123456, hash HMAC-SHA256, POST /api/v1/auth/teacher/login và change-pin, rate limiting chống brute-force.
+- Chặn tuyệt đối điện thoại trên mạng LAN vào Admin: Backend serve_spa tự động chuyển hướng HTTP 307 mọi request từ LAN vào / hoặc các route giáo viên sang /join (màn hình thi của học sinh).
+- Frontend TeacherLoginPage bảo vệ toàn bộ Bàn làm việc Giáo viên, thêm form đổi mã PIN và nút đăng xuất.
+- Verification: 35/35 pytest (+ test_teacher_pin_authentication_and_lan_boundary), 11/11 vitest, ruff, mypy, eslint, tsc, vite build PASS. Đóng gói lại ExamGuard.exe và release ZIP v0.1.1.
+
 2026-11-08 — Hotfix & UX Hardening (Room management & Favicon)
 - Fix phòng chờ kẹt trạng thái: loại bỏ danh sách "Phòng thi gần đây", ưu tiên chọn phòng thi đang hoạt động (WAITING/RUNNING), thêm nút "Hủy phòng chờ" và "Xóa phòng thi" (cascade sạch CSDL, endpoint DELETE /api/v1/exams/{exam_id}).
 - Lưu trữ và tự động nạp lại mã tham gia học sinh: migration 0008, GET /api/v1/rooms/{exam_id}/invites, UI tự động hiển thị bảng mã cấp cho học sinh ngay khi mở phòng chờ.

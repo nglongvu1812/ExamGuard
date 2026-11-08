@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, DatabaseBackup, HardDrive, ShieldCheck } from "lucide-react";
+import { CheckCircle2, DatabaseBackup, HardDrive, KeyRound, Lock, ShieldCheck } from "lucide-react";
 import {
+  authApi,
   backupApi,
   type BackupManifestDTO,
   type HealthResponse,
@@ -19,6 +20,45 @@ export function SettingsBackupPage({ health }: SettingsBackupPageProps) {
   const [verifyReport, setVerifyReport] = useState<VerifyBackupResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Teacher PIN Change State
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinNotice, setPinNotice] = useState<string | null>(null);
+
+  const handleChangePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPin.trim() || !newPin.trim()) {
+      setPinError("Vui lòng điền đầy đủ mã PIN hiện tại và mã PIN mới.");
+      return;
+    }
+    if (newPin.trim().length < 4) {
+      setPinError("Mã PIN mới phải có ít nhất 4 ký tự.");
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError("Mã PIN mới và xác nhận mã PIN không khớp nhau.");
+      return;
+    }
+
+    setPinLoading(true);
+    setPinError(null);
+    setPinNotice(null);
+    try {
+      const res = await authApi.changeTeacherPin(currentPin.trim(), newPin.trim());
+      setPinNotice(res.message);
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : "Đổi mã PIN thất bại.");
+    } finally {
+      setPinLoading(false);
+    }
+  };
 
   const loadBackups = useCallback(async () => {
     try {
@@ -186,6 +226,93 @@ export function SettingsBackupPage({ health }: SettingsBackupPageProps) {
             </table>
           </div>
         )}
+      </section>
+
+      {/* Teacher PIN Security Card */}
+      <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1E3A5F]">
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Bảo mật Quản trị & Đổi mã PIN Giáo viên</h2>
+            <p className="text-xs text-slate-500">
+              Mã PIN dùng để đăng nhập vào Bàn làm việc Giáo viên, ngăn chặn các thiết bị khác xâm nhập trái phép.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={(e) => void handleChangePin(e)} className="mt-4 max-w-xl space-y-4">
+          {pinError ? (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {pinError}
+            </div>
+          ) : null}
+
+          {pinNotice ? (
+            <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+              {pinNotice}
+            </div>
+          ) : null}
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label htmlFor="current-pin" className="block text-xs font-medium text-slate-700">
+                Mã PIN hiện tại
+              </label>
+              <input
+                id="current-pin"
+                type="password"
+                value={currentPin}
+                onChange={(e) => setCurrentPin(e.target.value)}
+                placeholder="Mặc định: 123456"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="new-pin" className="block text-xs font-medium text-slate-700">
+                Mã PIN mới
+              </label>
+              <input
+                id="new-pin"
+                type="password"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value)}
+                placeholder="Tối thiểu 4 ký tự"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirm-pin" className="block text-xs font-medium text-slate-700">
+                Xác nhận PIN mới
+              </label>
+              <input
+                id="confirm-pin"
+                type="password"
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value)}
+                placeholder="Nhập lại mã PIN mới"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-slate-500">
+              Mã PIN ban đầu mặc định là <code className="font-mono text-amber-700 font-semibold">123456</code>
+            </span>
+            <button
+              type="submit"
+              disabled={pinLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#1E3A5F] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#162a45] disabled:opacity-50"
+            >
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{pinLoading ? "Đang lưu..." : "Cập nhật mã PIN"}</span>
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );

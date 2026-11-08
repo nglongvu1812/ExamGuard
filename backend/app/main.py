@@ -10,9 +10,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
@@ -63,7 +63,7 @@ from app.db.models import (  # noqa: F401
     TeacherProfile,
 )
 from app.db.session import create_session_factory, create_sqlite_engine
-from app.security.auth import SlidingWindowRateLimiter, load_or_create_server_secret
+from app.security.auth import SlidingWindowRateLimiter, is_loopback_client, load_or_create_server_secret
 from app.services.monitoring_service import evaluate_room_presence, get_room_monitoring_snapshot
 
 logger = logging.getLogger("examguard.app")
@@ -204,9 +204,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Favicon not found")
 
         @app.get("/{full_path:path}", include_in_schema=False)
-        def serve_spa(full_path: str) -> FileResponse:
+        def serve_spa(request: Request, full_path: str) -> Response:
             if full_path.startswith("api/") or full_path.startswith("ws/"):
                 raise HTTPException(status_code=404, detail="Not Found")
+
+            # LAN Isolation: Devices connecting across LAN must never default to Teacher Console
+            if not is_loopback_client(request):
+                clean_path = full_path.strip("/")
+                teacher_paths = {
+                    "",
+                    "index.html",
+                    "classes",
+                    "exams",
+                    "questions",
+                    "results",
+                    "settings",
+                    "paper",
+                    "lan-help",
+                    "dashboard",
+                    "teacher",
+                }
+                if clean_path in {"", "index.html"}:
+                    return RedirectResponse(url="/join", status_code=307)
+                if not resolved_settings.allow_lan_teacher_console and clean_path in teacher_paths:
+                    return RedirectResponse(url="/join", status_code=307)
+
             target = (static_dir / full_path).resolve()
             if full_path and target.is_file() and target.is_relative_to(static_dir.resolve()):
                 return FileResponse(target)

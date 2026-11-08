@@ -438,3 +438,60 @@ def test_waiting_room_cancellation_and_active_exam_endpoint(tmp_path: Path) -> N
         assert client.get(f"/api/v1/exams/{exam2_id}", headers=headers).status_code == 404
 
 
+def test_teacher_pin_authentication_and_lan_boundary(tmp_path: Path) -> None:
+    """Verify Teacher PIN authentication, PIN change, and strict LAN boundary isolation."""
+    settings = Settings(data_dir=tmp_path / "ExamGuardData", static_dir=tmp_path / "static")
+    (tmp_path / "static").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "static" / "index.html").write_text("<html>ExamGuard</html>", encoding="utf-8")
+
+    app = create_app(settings)
+
+    # 1. Loopback client login with default PIN "123456"
+    with TestClient(app) as local_client:
+        res_fail = local_client.post("/api/v1/auth/teacher/login", json={"pin": "wrongpin"})
+        assert res_fail.status_code == 401
+        assert "không chính xác" in res_fail.json()["detail"]
+
+        res_ok = local_client.post("/api/v1/auth/teacher/login", json={"pin": "123456"})
+        assert res_ok.status_code == 200
+        token = res_ok.json()["token"]
+        assert token
+
+        # 2. Change PIN to "secure888"
+        chg_res = local_client.post(
+            "/api/v1/auth/teacher/change-pin",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"current_pin": "123456", "new_pin": "secure888"},
+        )
+        assert chg_res.status_code == 200
+
+        # Old PIN now rejected
+        assert local_client.post("/api/v1/auth/teacher/login", json={"pin": "123456"}).status_code == 401
+
+        # New PIN accepted
+        new_login = local_client.post("/api/v1/auth/teacher/login", json={"pin": "secure888"})
+        assert new_login.status_code == 200
+
+    # 3. LAN client (e.g. Phone 192.168.1.100) attempts to access teacher endpoints
+    with TestClient(app, client=("192.168.1.100", 55432)) as lan_client:
+        # LAN login rejected with 403
+        lan_login = lan_client.post("/api/v1/auth/teacher/login", json={"pin": "secure888"})
+        assert lan_login.status_code == 403
+        assert "mạng LAN đã bị khóa" in lan_login.json()["detail"]
+
+        # LAN local-session rejected with 403
+        lan_sess = lan_client.post("/api/v1/auth/teacher/local-session")
+        assert lan_sess.status_code == 403
+
+        # LAN client accessing root / is redirected to /join with 307
+        root_res = lan_client.get("/", follow_redirects=False)
+        assert root_res.status_code == 307
+        assert root_res.headers["location"] == "/join"
+
+        # LAN client accessing /classes or /exams is redirected to /join with 307
+        classes_res = lan_client.get("/classes", follow_redirects=False)
+        assert classes_res.status_code == 307
+        assert classes_res.headers["location"] == "/join"
+
+
+

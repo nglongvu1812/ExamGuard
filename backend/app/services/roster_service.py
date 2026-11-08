@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.db.models import ClassMembership, Classroom, Student, TeacherProfile
+from app.security.auth import hash_secret_value, verify_secret_value
 from app.services.audit_service import record_audit_event
 from fastapi import HTTPException, status
 from openpyxl import load_workbook
@@ -32,6 +33,36 @@ def ensure_default_teacher(db: Session) -> TeacherProfile:
         db.commit()
         db.refresh(teacher)
     return teacher
+
+
+DEFAULT_TEACHER_PIN = "123456"
+
+
+def get_teacher_pin_hash(teacher: TeacherProfile, server_secret: bytes) -> str:
+    try:
+        data = json.loads(teacher.settings_json or "{}")
+    except Exception:
+        data = {}
+    stored = data.get("pin_hash")
+    if stored and isinstance(stored, str):
+        return stored
+    return hash_secret_value(DEFAULT_TEACHER_PIN, server_secret)
+
+
+def verify_teacher_pin(teacher: TeacherProfile, pin: str, server_secret: bytes) -> bool:
+    expected_hash = get_teacher_pin_hash(teacher, server_secret)
+    return verify_secret_value(pin.strip(), expected_hash, server_secret)
+
+
+def update_teacher_pin(db: Session, teacher: TeacherProfile, new_pin: str, server_secret: bytes) -> None:
+    try:
+        data = json.loads(teacher.settings_json or "{}")
+    except Exception:
+        data = {}
+    data["pin_hash"] = hash_secret_value(new_pin.strip(), server_secret)
+    teacher.settings_json = json.dumps(data)
+    db.commit()
+    db.refresh(teacher)
 
 
 def create_classroom(

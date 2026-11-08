@@ -6,13 +6,14 @@ import {
   DatabaseBackup,
   FilePlus2,
   Home,
+  LogOut,
   Printer,
   ShieldCheck,
   Smartphone,
   Users,
   Wifi,
 } from "lucide-react";
-import type { HealthResponse } from "../api/client";
+import { teacherLogout, type HealthResponse } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 
 interface TeacherLayoutProps {
@@ -71,7 +72,7 @@ export function TeacherLayout({ health, healthError, children }: TeacherLayoutPr
           ))}
         </nav>
 
-        <div className="hidden border-t border-slate-200 p-4 lg:block">
+        <div className="hidden border-t border-slate-200 p-4 space-y-2 lg:block">
           <NavLink
             to="/join"
             className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
@@ -79,6 +80,18 @@ export function TeacherLayout({ health, healthError, children }: TeacherLayoutPr
             <Smartphone className="h-4 w-4" aria-hidden="true" />
             <span>Mở giao diện Học sinh</span>
           </NavLink>
+          <button
+            type="button"
+            onClick={() => {
+              teacherLogout();
+              window.location.href = "/";
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50/70 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-100"
+            title="Đăng xuất khỏi Bàn làm việc Giáo viên"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <span>Đăng xuất Quản trị</span>
+          </button>
         </div>
       </aside>
 
@@ -104,9 +117,23 @@ export function TeacherLayout({ health, healthError, children }: TeacherLayoutPr
               <StatusBadge tone="neutral" label="Đang kiểm tra máy chủ..." />
             )}
           </div>
-          <span className="font-mono-data text-xs text-slate-500">
-            Classroom Mode · Không cần Internet
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono-data text-xs text-slate-500">
+              Classroom Mode · Không cần Internet
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                teacherLogout();
+                window.location.href = "/";
+              }}
+              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-red-50 hover:text-red-700"
+              title="Đăng xuất khỏi Bàn làm việc Giáo viên"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Thoát</span>
+            </button>
+          </div>
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 p-6">{children}</main>
