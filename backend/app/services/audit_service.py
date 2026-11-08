@@ -7,6 +7,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+from app.db.locks import AUDIT_WRITE_LOCK
 from app.db.models import AuditEvent
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,45 +30,46 @@ def record_audit_event(
     after_hash: str = "",
 ) -> AuditEvent:
     """Append a tamper-evident audit event chained to the previous event hash."""
-    prev_event = db.execute(
-        select(AuditEvent).order_by(AuditEvent.id.desc()).limit(1)
-    ).scalar_one_or_none()
-    prev_hash = prev_event.event_hash if prev_event else "GENESIS"
+    with AUDIT_WRITE_LOCK:
+        prev_event = db.execute(
+            select(AuditEvent).order_by(AuditEvent.id.desc()).limit(1)
+        ).scalar_one_or_none()
+        prev_hash = prev_event.event_hash if prev_event else "GENESIS"
 
-    created_at = datetime.now(UTC)
-    details_json = json.dumps(details or {}, ensure_ascii=False, sort_keys=True)
-    canonical = "|".join(
-        [
-            prev_hash,
-            actor_type,
-            actor_id,
-            action,
-            target_type,
-            target_id,
-            details_json,
-            before_hash,
-            after_hash,
-            created_at.isoformat(),
-        ]
-    )
-    event_hash = _sha256_hex(canonical)
+        created_at = datetime.now(UTC)
+        details_json = json.dumps(details or {}, ensure_ascii=False, sort_keys=True)
+        canonical = "|".join(
+            [
+                prev_hash,
+                actor_type,
+                actor_id,
+                action,
+                target_type,
+                target_id,
+                details_json,
+                before_hash,
+                after_hash,
+                created_at.isoformat(),
+            ]
+        )
+        event_hash = _sha256_hex(canonical)
 
-    event = AuditEvent(
-        actor_type=actor_type,
-        actor_id=actor_id,
-        action=action,
-        target_type=target_type,
-        target_id=target_id,
-        details_json=details_json,
-        before_hash=before_hash,
-        after_hash=after_hash,
-        prev_hash=prev_hash,
-        event_hash=event_hash,
-        created_at=created_at,
-    )
-    db.add(event)
-    db.flush()
-    return event
+        event = AuditEvent(
+            actor_type=actor_type,
+            actor_id=actor_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            details_json=details_json,
+            before_hash=before_hash,
+            after_hash=after_hash,
+            prev_hash=prev_hash,
+            event_hash=event_hash,
+            created_at=created_at,
+        )
+        db.add(event)
+        db.flush()
+        return event
 
 
 def verify_audit_chain(db: Session) -> tuple[bool, int]:

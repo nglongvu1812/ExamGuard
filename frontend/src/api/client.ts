@@ -94,9 +94,14 @@ export interface RoomRosterEntryDTO {
   full_name: string;
   attempt_id: string | null;
   attempt_state: string;
+  presence_state?: string;
   device_bound: boolean;
   latest_revision?: number;
   answered_count?: number;
+  reconnect_count?: number;
+  hidden_event_count?: number;
+  extra_time_s?: number;
+  open_incident_id?: string | null;
   submitted_at?: string | null;
 }
 
@@ -110,10 +115,13 @@ export interface AttemptStatusResponse {
   student_name: string;
   roster_code: string;
   state: string;
+  presence_state?: string;
+  extra_time_s?: number;
   remaining_s?: number;
   is_paused?: boolean;
   latest_revision?: number;
   submitted_at?: string | null;
+  incident_reason?: string | null;
 }
 
 export interface JoinRoomResponse {
@@ -123,7 +131,7 @@ export interface JoinRoomResponse {
 
 let cachedTeacherToken: string | null = null;
 
-async function ensureTeacherToken(): Promise<string> {
+export async function ensureTeacherToken(): Promise<string> {
   if (cachedTeacherToken) return cachedTeacherToken;
   const res = await fetch("/api/v1/auth/teacher/local-session", { method: "POST" });
   if (!res.ok) {
@@ -440,6 +448,9 @@ export interface StudentPaperResponse {
   room_code: string;
   exam_status: string;
   attempt_state: string;
+  presence_state?: string;
+  extra_time_s?: number;
+  heartbeat_s?: number;
   is_paused: boolean;
   remaining_s: number;
   server_time_utc: string;
@@ -465,6 +476,8 @@ export interface CanonicalSyncResponse {
   exam_id: string;
   exam_status: string;
   attempt_state: string;
+  presence_state?: string;
+  extra_time_s?: number;
   is_paused: boolean;
   remaining_s: number;
   server_time_utc: string;
@@ -472,6 +485,7 @@ export interface CanonicalSyncResponse {
   saved_answers: Record<string, SavedAnswerEntryDTO>;
   submitted_at: string | null;
   snapshot_hash: string | null;
+  incident_reason?: string | null;
 }
 
 export interface SubmitAttemptResponse {
@@ -563,6 +577,174 @@ export const studentExamApi = {
       { method: "POST" },
       "student",
       studentToken
+    );
+  },
+  sendHeartbeat(studentToken: string, attemptId: string): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(
+      `/api/v1/attempts/${attemptId}/heartbeat`,
+      { method: "POST" },
+      "student",
+      studentToken
+    );
+  },
+  sendClientEvent(
+    studentToken: string,
+    attemptId: string,
+    event_type: "APP_HIDDEN" | "PAGE_UNLOADED" | "NETWORK_LOST" | "CLIENT_RELOAD",
+    details: Record<string, unknown> = {}
+  ): Promise<{ event_id: string; event_type: string; server_time_utc: string }> {
+    return fetchJson<{ event_id: string; event_type: string; server_time_utc: string }>(
+      `/api/v1/attempts/${attemptId}/events`,
+      { method: "POST", body: JSON.stringify({ event_type, details }) },
+      "student",
+      studentToken
+    );
+  },
+  refreshToken(
+    studentToken: string,
+    attemptId: string
+  ): Promise<{ attempt_token: string; expires_in_s: number }> {
+    return fetchJson<{ attempt_token: string; expires_in_s: number }>(
+      `/api/v1/attempts/${attemptId}/refresh-token`,
+      { method: "POST" },
+      "student",
+      studentToken
+    );
+  },
+};
+
+export interface MonitoringPolicyDTO {
+  heartbeat_s: number;
+  suspected_s: number;
+  disconnect_s: number;
+  lock_after_s: number;
+  grace_submit_s: number;
+}
+
+export interface MonitoringRosterEntryDTO {
+  student_id: string;
+  roster_code: string;
+  full_name: string;
+  attempt_id: string | null;
+  attempt_state: string;
+  presence_state: string;
+  device_bound: boolean;
+  latest_revision: number;
+  answered_count: number;
+  last_heartbeat_at: string | null;
+  heartbeat_age_s: number | null;
+  reconnect_count: number;
+  hidden_event_count: number;
+  extra_time_s: number;
+  open_incident_id: string | null;
+  open_incident_summary: string | null;
+  submitted_at: string | null;
+}
+
+export interface IncidentDTO {
+  id: string;
+  attempt_id: string;
+  roster_code: string;
+  full_name: string;
+  state: string;
+  trigger_type: string;
+  summary: string;
+  opened_at: string;
+}
+
+export interface RoomMonitoringSnapshotDTO {
+  exam_id: string;
+  room_code: string;
+  title: string;
+  status: string;
+  is_paused: boolean;
+  remaining_s: number;
+  question_count: number;
+  server_time_utc: string;
+  policy: MonitoringPolicyDTO;
+  summary: {
+    total_students: number;
+    active_count: number;
+    submitted_count: number;
+    pending_count: number;
+    suspected_count: number;
+    disconnected_count: number;
+    locked_count: number;
+    open_incidents_count: number;
+  };
+  open_incidents: IncidentDTO[];
+  roster: MonitoringRosterEntryDTO[];
+}
+
+export interface AttemptTimelineResponse {
+  attempt_id: string;
+  exam_id: string;
+  roster_code: string;
+  full_name: string;
+  attempt_state: string;
+  presence_state: string;
+  extra_time_s: number;
+  reconnect_count: number;
+  hidden_event_count: number;
+  events: {
+    id: string;
+    event_type: string;
+    server_time: string;
+    details: Record<string, unknown>;
+  }[];
+  incidents: {
+    id: string;
+    state: string;
+    trigger_type: string;
+    summary: string;
+    opened_at: string;
+    resolved_at: string | null;
+    resolution_reason: string | null;
+  }[];
+}
+
+export const monitoringApi = {
+  getSnapshot(examId: string): Promise<RoomMonitoringSnapshotDTO> {
+    return fetchJson<RoomMonitoringSnapshotDTO>(
+      `/api/v1/monitoring/exams/${examId}`,
+      undefined,
+      "teacher"
+    );
+  },
+  updatePolicy(examId: string, policy: MonitoringPolicyDTO): Promise<MonitoringPolicyDTO> {
+    return fetchJson<MonitoringPolicyDTO>(
+      `/api/v1/monitoring/exams/${examId}/policy`,
+      { method: "PATCH", body: JSON.stringify(policy) },
+      "teacher"
+    );
+  },
+  getTimeline(examId: string, attemptId: string): Promise<AttemptTimelineResponse> {
+    return fetchJson<AttemptTimelineResponse>(
+      `/api/v1/monitoring/exams/${examId}/attempts/${attemptId}/timeline`,
+      undefined,
+      "teacher"
+    );
+  },
+  lockAttempt(
+    examId: string,
+    attemptId: string,
+    reason: string
+  ): Promise<{ attempt_id: string; attempt_state: string; incident_id: string }> {
+    return fetchJson<{ attempt_id: string; attempt_state: string; incident_id: string }>(
+      `/api/v1/monitoring/exams/${examId}/attempts/${attemptId}/lock`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+      "teacher"
+    );
+  },
+  resolveIncident(
+    examId: string,
+    attemptId: string,
+    payload: { action: "unlock" | "extend_time" | "terminate"; reason: string; extend_minutes?: number }
+  ): Promise<{ attempt_id: string; attempt_state: string; extra_time_s: number }> {
+    return fetchJson<{ attempt_id: string; attempt_state: string; extra_time_s: number }>(
+      `/api/v1/monitoring/exams/${examId}/attempts/${attemptId}/resolve`,
+      { method: "POST", body: JSON.stringify(payload) },
+      "teacher"
     );
   },
 };

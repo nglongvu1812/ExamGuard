@@ -60,14 +60,14 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-401 | TODO | Authenticated WS lifecycle/heartbeat/reconnect state |
-| EG-402 | TODO | Presence model, server transitions, dashboard status |
-| EG-403 | TODO | Visibility/pagehide events collected with server timestamp |
-| EG-404 | TODO | Configurable grace period + non-punitive incident model |
-| EG-405 | TODO | Teacher lock/unlock/rebind, reason audit |
-| EG-406 | TODO | Student technical incident screen and retry handling |
-| EG-407 | TODO | Cross-browser real device matrix and false-positive notes |
-| EG-408 | TODO | Threat tests, role checks, no cheating guarantees claimed |
+| EG-401 | DONE | Authenticated WS lifecycle/heartbeat/reconnect state |
+| EG-402 | DONE | Presence model, server transitions, dashboard status |
+| EG-403 | DONE | Visibility/pagehide events collected with server timestamp |
+| EG-404 | DONE | Configurable grace period + non-punitive incident model |
+| EG-405 | DONE | Teacher lock/unlock/rebind, reason audit |
+| EG-406 | DONE | Student technical incident screen and retry handling |
+| EG-407 | REVIEW | Cross-browser matrix & false-positive guide (`docs/MONITORING_MATRIX.md`); physical 3-phone test pending hardware pilot |
+| EG-408 | DONE | Threat tests, role checks, no cheating guarantees claimed |
 
 ## P5 — Results
 

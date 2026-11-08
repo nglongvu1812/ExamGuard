@@ -384,7 +384,7 @@ def test_concurrent_double_submit_and_close_race(tmp_path: Path) -> None:
         shared_idem = str(uuid.uuid4())
 
         def _write_once() -> int:
-            return client.post(
+            res = client.post(
                 f"/api/v1/attempts/{att10_id}/answers",
                 json={
                     "question_version_id": q_first["question_version_id"],
@@ -392,7 +392,8 @@ def test_concurrent_double_submit_and_close_race(tmp_path: Path) -> None:
                     "idempotency_key": shared_idem,
                 },
                 headers={"Authorization": f"Bearer {tok10}"},
-            ).status_code
+            )
+            return int(res.status_code)
 
         with ThreadPoolExecutor(max_workers=6) as pool:
             statuses = list(pool.map(lambda _: _write_once(), range(6)))

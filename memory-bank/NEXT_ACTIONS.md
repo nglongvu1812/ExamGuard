@@ -1,6 +1,5 @@
 # Next Actions
 
-1. Tạo Alembic migration `0005_monitoring_and_incidents.py` và ORM models `PresenceEvent`, `Incident`.
-2. Xây dựng `monitoring_service.py` + `ws.py` WebSocket hub `/ws/v1/room/{exam_id}` (teacher & student auth, zero key leak, presence states `ACTIVE -> SUSPECTED -> DISCONNECTED -> LOCKED_PENDING_REVIEW`), API heartbeat, telemetry (`visibilitychange`/`pagehide`), kiểm tra quá hạn grace period và giáo viên xử lý sự cố (`unlock`, `extend_time`, `terminate`) ghi audit.
-3. Xây dựng Teacher Live Monitoring Dashboard (`T6`) tích hợp vào phòng thi + Incident Drawer và Student Incident Screen (`S5`) tự động reconnect kèm backoff/jitter.
-4. Viết `test_p4_monitoring.py` + kiểm thử UI Vitest + báo cáo `PHASE_P4_REPORT.md`.
+1. Kiểm tra `reportlab` và Pillow trong `backend/.venv`, chuẩn bị font TTF hỗ trợ tiếng Việt (copy offline vào `backend/app/assets/fonts/`).
+2. Triển khai Phase P5 (`EG-501`..`EG-510`): migration `0006_grading_and_receipts.py`, pure scoring engine, regrade versioning (`GradeRun`, `ScoreVersion`, `ReceiptVersion`), review/publish strict gate, Excel export (chống formula injection), PDF/PNG receipt, phúc khảo UI (`T7`, `T8`) và kết quả học sinh (`S7`), negative security tests.
+3. Tiếp tục P6 (Paper bridge + OMR + PDF/XLSX import) và P7 (PyInstaller Portable Windows build + load test + quickstart/checklist).

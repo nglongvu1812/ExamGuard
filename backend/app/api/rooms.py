@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from app.api.deps import get_db
-from app.db.models import AnswerRevision, Attempt, DeviceBinding, Exam, ExamQuestion, Student
+from app.db.models import (
+    AnswerRevision,
+    Attempt,
+    DeviceBinding,
+    Exam,
+    ExamQuestion,
+    Incident,
+    Student,
+)
 from app.security.auth import (
     StudentPrincipal,
     TeacherPrincipal,
@@ -11,6 +19,7 @@ from app.security.auth import (
     require_teacher,
 )
 from app.services.exam_service import compute_remaining_seconds
+from app.services.monitoring_service import evaluate_room_presence, get_room_monitoring_snapshot
 from app.services.room_service import (
     approve_all_pending,
     approve_attempt,
@@ -64,10 +73,15 @@ class RoomRosterEntryDTO(BaseModel):
     roster_code: str
     full_name: str
     attempt_id: str | None
-    attempt_state: str  # NOT_JOINED | PENDING_APPROVAL | READY | ACTIVE | SUBMITTED
+    attempt_state: str  # NOT_JOINED | PENDING_APPROVAL | READY | ACTIVE | SUBMITTED | LOCKED
+    presence_state: str = "OFFLINE"
     device_bound: bool
     latest_revision: int = 0
     answered_count: int = 0
+    reconnect_count: int = 0
+    hidden_event_count: int = 0
+    extra_time_s: int = 0
+    open_incident_id: str | None = None
     submitted_at: str | None = None
 
 
@@ -87,10 +101,13 @@ class AttemptStatusResponse(BaseModel):
     student_name: str
     roster_code: str
     state: str
+    presence_state: str = "OFFLINE"
+    extra_time_s: int = 0
     remaining_s: int = 0
     is_paused: bool = False
     latest_revision: int = 0
     submitted_at: str | None = None
+    incident_reason: str | None = None
 
 
 class JoinRoomResponse(BaseModel):
@@ -177,10 +194,20 @@ def get_room_roster(
     exam = db.get(Exam, exam_id)
     if exam is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy phòng thi.")
+    if exam.status == "RUNNING":
+        evaluate_room_presence(db, exam_id=exam_id)
     students = list_classroom_students(db, classroom_id=exam.classroom_id)
     attempts = {
         a.student_id: a
         for a in db.execute(select(Attempt).where(Attempt.exam_id == exam_id)).scalars().all()
+    }
+    open_incident_by_attempt = {
+        inc.attempt_id: inc.id
+        for inc in db.execute(
+            select(Incident).where(Incident.exam_id == exam_id, Incident.state == "OPEN")
+        )
+        .scalars()
+        .all()
     }
     bound_attempt_ids = set(
         db.execute(
@@ -216,9 +243,14 @@ def get_room_roster(
                 full_name=st.full_name,
                 attempt_id=att.id if att else None,
                 attempt_state=att.state if att else "NOT_JOINED",
+                presence_state=att.presence_state if att else "OFFLINE",
                 device_bound=(att is not None and att.id in bound_attempt_ids),
                 latest_revision=att.latest_revision if att else 0,
                 answered_count=answered_counts.get(att.id, 0) if att else 0,
+                reconnect_count=att.reconnect_count if att else 0,
+                hidden_event_count=att.hidden_event_count if att else 0,
+                extra_time_s=att.extra_time_s if att else 0,
+                open_incident_id=open_incident_by_attempt.get(att.id) if att else None,
                 submitted_at=att.submitted_at.isoformat() if (att and att.submitted_at) else None,
             )
         )
@@ -226,31 +258,47 @@ def get_room_roster(
 
 
 @router.post("/rooms/{exam_id}/attempts/{attempt_id}/approve")
-def post_approve_attempt(
+async def post_approve_attempt(
     exam_id: str,
     attempt_id: str,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     att = approve_attempt(db, exam_id=exam_id, attempt_id=attempt_id, teacher_id=teacher.teacher_id)
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is not None:
+        await ws_manager.send_to_attempt(
+            exam_id,
+            att.id,
+            {"type": "attempt_update", "attempt_id": att.id, "attempt_state": att.state},
+        )
+        snap = get_room_monitoring_snapshot(db, exam_id=exam_id)
+        await ws_manager.broadcast_teacher_snapshot(exam_id, snap)
     return {"attempt_id": att.id, "state": att.state}
 
 
 @router.post("/rooms/{exam_id}/approve-all")
-def post_approve_all(
+async def post_approve_all(
     exam_id: str,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
     count = approve_all_pending(db, exam_id=exam_id, teacher_id=teacher.teacher_id)
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is not None and count > 0:
+        snap = get_room_monitoring_snapshot(db, exam_id=exam_id)
+        await ws_manager.broadcast_teacher_snapshot(exam_id, snap)
     return {"approved_count": count}
 
 
 @router.post("/rooms/{exam_id}/attempts/{attempt_id}/reset-device")
-def post_reset_device(
+async def post_reset_device(
     exam_id: str,
     attempt_id: str,
     payload: ResetDeviceRequest,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
@@ -261,6 +309,11 @@ def post_reset_device(
         reason=payload.reason,
         teacher_id=teacher.teacher_id,
     )
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is not None:
+        await ws_manager.revoke_attempt_sockets(exam_id, att.id, "Thiết bị đã bị giáo viên đặt lại.")
+        snap = get_room_monitoring_snapshot(db, exam_id=exam_id)
+        await ws_manager.broadcast_teacher_snapshot(exam_id, snap)
     return {"attempt_id": att.id, "status": "device_reset"}
 
 
@@ -325,6 +378,12 @@ def get_my_attempt(
     st = db.get(Student, attempt.student_id)
     if exam is None or st is None:
         raise HTTPException(status_code=404, detail="Dữ liệu phòng thi không tồn tại.")
+    open_inc = db.execute(
+        select(Incident)
+        .where(Incident.attempt_id == attempt.id, Incident.state == "OPEN")
+        .order_by(Incident.opened_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
     return AttemptStatusResponse(
         attempt_id=attempt.id,
         exam_id=exam.id,
@@ -335,10 +394,13 @@ def get_my_attempt(
         student_name=st.full_name,
         roster_code=st.roster_code,
         state=attempt.state,
+        presence_state=attempt.presence_state,
+        extra_time_s=attempt.extra_time_s,
         remaining_s=compute_remaining_seconds(exam, attempt),
         is_paused=exam.paused_at is not None,
         latest_revision=attempt.latest_revision,
         submitted_at=attempt.submitted_at.isoformat() if attempt.submitted_at else None,
+        incident_reason=open_inc.summary if open_inc else None,
     )
 
 

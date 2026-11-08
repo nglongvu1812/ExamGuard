@@ -34,6 +34,7 @@ from app.services.exam_service import (
     resume_exam_session,
     start_exam_session,
 )
+from app.services.monitoring_service import get_room_monitoring_snapshot
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -258,46 +259,72 @@ def post_open_waiting(
     }
 
 
+async def _broadcast_exam_transition(request: Request, db: Session, exam: Exam) -> None:
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is None:
+        return
+    await ws_manager.broadcast_exam_state(
+        exam.id,
+        {
+            "type": "exam_state",
+            "exam_id": exam.id,
+            "exam_status": exam.status,
+            "is_paused": exam.paused_at is not None,
+            "remaining_s": compute_remaining_seconds(exam),
+        },
+    )
+    snap = get_room_monitoring_snapshot(db, exam_id=exam.id)
+    await ws_manager.broadcast_teacher_snapshot(exam.id, snap)
+
+
 @router.post("/exams/{exam_id}/start", response_model=ExamDetailDTO)
-def post_start_exam(
+async def post_start_exam(
     exam_id: str,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ExamDetailDTO:
     exam = start_exam_session(db, exam_id=exam_id, teacher_id=teacher.teacher_id)
+    await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
 
 
 @router.post("/exams/{exam_id}/pause", response_model=ExamDetailDTO)
-def post_pause_exam(
+async def post_pause_exam(
     exam_id: str,
     payload: ExamControlReasonRequest,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ExamDetailDTO:
     exam = pause_exam_session(db, exam_id=exam_id, reason=payload.reason, teacher_id=teacher.teacher_id)
+    await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
 
 
 @router.post("/exams/{exam_id}/resume", response_model=ExamDetailDTO)
-def post_resume_exam(
+async def post_resume_exam(
     exam_id: str,
+    request: Request,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ExamDetailDTO:
     exam = resume_exam_session(db, exam_id=exam_id, teacher_id=teacher.teacher_id)
+    await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
 
 
 @router.post("/exams/{exam_id}/close", response_model=ExamDetailDTO)
-def post_close_exam(
+async def post_close_exam(
     exam_id: str,
+    request: Request,
     payload: ExamControlReasonRequest | None = None,
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ExamDetailDTO:
     reason = payload.reason if payload else "Giáo viên đóng phòng thu bài"
     exam = close_exam_session(db, exam_id=exam_id, reason=reason, teacher_id=teacher.teacher_id)
+    await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
 
 
@@ -350,12 +377,17 @@ def get_attempt_sync(
 
 
 @router.post("/attempts/{attempt_id}/submit", response_model=SubmitAttemptResponse)
-def post_submit_attempt(
+async def post_submit_attempt(
     attempt_id: str,
+    request: Request,
     student: StudentPrincipal = Depends(require_student),
     db: Session = Depends(get_db),
 ) -> SubmitAttemptResponse:
     res = submit_student_attempt(db, attempt_id=attempt_id, student=student)
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is not None and not res.already_submitted:
+        snap = get_room_monitoring_snapshot(db, exam_id=student.exam_id)
+        await ws_manager.broadcast_teacher_snapshot(student.exam_id, snap)
     return SubmitAttemptResponse(
         submission_id=res.submission.id,
         attempt_id=res.submission.attempt_id,

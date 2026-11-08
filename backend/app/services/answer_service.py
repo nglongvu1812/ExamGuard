@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import threading
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.db.locks import EXAM_WRITE_LOCK
 from app.db.models import (
     AnswerRevision,
     Attempt,
     Exam,
     ExamQuestion,
+    Incident,
     QuestionVersion,
     Submission,
 )
@@ -31,7 +32,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 OPTION_LETTERS = "ABCDEFGHIJ"
-_ANSWER_WRITE_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -127,10 +127,18 @@ def get_student_paper_payload(db: Session, *, student: StudentPrincipal) -> dict
     now = datetime.now(UTC)
     if attempt.state == "READY":
         attempt.state = "ACTIVE"
+        attempt.presence_state = "ACTIVE"
+        attempt.last_heartbeat_at = now
+        attempt.last_seen = now
         if attempt.started_at is None:
             attempt.started_at = now
         db.commit()
         db.refresh(attempt)
+    elif attempt.state == "ACTIVE" and attempt.last_heartbeat_at is None:
+        attempt.presence_state = "ACTIVE"
+        attempt.last_heartbeat_at = now
+        attempt.last_seen = now
+        db.commit()
 
     perm = ensure_student_permutation(db, exam=exam, student_id=student.student_id)
     db.commit()
@@ -175,6 +183,14 @@ def get_student_paper_payload(db: Session, *, student: StudentPrincipal) -> dict
             }
         )
 
+    heartbeat_s = 3
+    try:
+        raw_pol = json.loads(exam.policy_json or "{}")
+        if isinstance(raw_pol, dict) and isinstance(raw_pol.get("heartbeat_s"), int | float):
+            heartbeat_s = max(1, int(raw_pol["heartbeat_s"]))
+    except Exception:
+        heartbeat_s = 3
+
     return {
         "attempt_id": attempt.id,
         "exam_id": exam.id,
@@ -182,6 +198,9 @@ def get_student_paper_payload(db: Session, *, student: StudentPrincipal) -> dict
         "room_code": exam.room_code,
         "exam_status": exam.status,
         "attempt_state": attempt.state,
+        "presence_state": attempt.presence_state,
+        "extra_time_s": attempt.extra_time_s,
+        "heartbeat_s": heartbeat_s,
         "is_paused": exam.paused_at is not None,
         "remaining_s": compute_remaining_seconds(exam, attempt, now),
         "server_time_utc": now.isoformat(),
@@ -276,12 +295,22 @@ def save_answer_revision(
     if any(oid not in valid_option_ids for oid in clean_selected):
         raise HTTPException(status_code=400, detail="Phương án lựa chọn không hợp lệ cho câu hỏi này.")
 
-    with _ANSWER_WRITE_LOCK:
+    with EXAM_WRITE_LOCK:
         # Refresh inside lock to read latest committed revision safely under concurrency
         db.expire_all()
         attempt_locked = db.get(Attempt, attempt.id)
         if attempt_locked is None:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên thi.")
+        if attempt_locked.state in {"LOCKED_PENDING_REVIEW", "ENDED_WITH_REVIEW"}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Phiên làm bài đang tạm khóa chờ giáo viên xác minh.",
+            )
+        if attempt_locked.state == "SUBMITTED":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Bài làm đã được nộp, không thể thay đổi đáp án.",
+            )
 
         existing_locked = db.execute(
             select(AnswerRevision).where(
@@ -302,8 +331,12 @@ def save_answer_revision(
 
         if attempt_locked.state == "READY":
             attempt_locked.state = "ACTIVE"
+            attempt_locked.presence_state = "ACTIVE"
             if attempt_locked.started_at is None:
                 attempt_locked.started_at = now
+        attempt_locked.last_heartbeat_at = now
+        if attempt_locked.presence_state != "ACTIVE":
+            attempt_locked.presence_state = "ACTIVE"
 
         next_revision = attempt_locked.latest_revision + 1
         attempt_locked.latest_revision = next_revision
@@ -366,12 +399,20 @@ def get_canonical_sync_state(
     submission = db.execute(
         select(Submission).where(Submission.attempt_id == attempt.id)
     ).scalar_one_or_none()
+    open_incident = db.execute(
+        select(Incident)
+        .where(Incident.attempt_id == attempt.id, Incident.state == "OPEN")
+        .order_by(Incident.opened_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
 
     return {
         "attempt_id": attempt.id,
         "exam_id": exam.id,
         "exam_status": exam.status,
         "attempt_state": attempt.state,
+        "presence_state": attempt.presence_state,
+        "extra_time_s": attempt.extra_time_s,
         "is_paused": exam.paused_at is not None,
         "remaining_s": compute_remaining_seconds(exam, attempt, now),
         "server_time_utc": now.isoformat(),
@@ -379,6 +420,7 @@ def get_canonical_sync_state(
         "saved_answers": _latest_answers_map(db, attempt.id),
         "submitted_at": submission.submitted_at.isoformat() if submission else None,
         "snapshot_hash": submission.snapshot_hash if submission else None,
+        "incident_reason": open_incident.summary if open_incident else None,
     }
 
 
@@ -412,7 +454,7 @@ def submit_student_attempt(
             detail="Bài thi đang tạm khóa chờ giáo viên xử lý.",
         )
 
-    with _ANSWER_WRITE_LOCK:
+    with EXAM_WRITE_LOCK:
         db.expire_all()
         existing_locked = db.execute(
             select(Submission).where(Submission.attempt_id == attempt.id)
@@ -423,6 +465,11 @@ def submit_student_attempt(
         attempt_locked = db.get(Attempt, attempt.id)
         if attempt_locked is None:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên thi.")
+        if attempt_locked.state in {"LOCKED_PENDING_REVIEW", "ENDED_WITH_REVIEW"}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bài thi đang tạm khóa chờ giáo viên xử lý.",
+            )
 
         revs = (
             db.execute(

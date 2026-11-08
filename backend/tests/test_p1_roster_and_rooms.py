@@ -345,7 +345,7 @@ def test_concurrent_join_race_produces_single_attempt(tmp_path: Path) -> None:
                 f"/api/v1/room/{room_code}/join",
                 json={"roster_code": "HS301", "invite_code": code, "browser_key": f"race-device-{idx}-abcdef"},
             )
-            return res.status_code
+            return int(res.status_code)
 
         with ThreadPoolExecutor(max_workers=4) as pool:
             statuses = list(pool.map(_join, range(4)))

@@ -120,7 +120,10 @@ class Exam(Base):
     policy_json: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"heartbeat_s": 3, "suspected_s": 5, "disconnect_s": 15, "grace_submit_s": 30}',
+        default=(
+            '{"heartbeat_s": 3, "suspected_s": 5, '
+            '"disconnect_s": 15, "lock_after_s": 30, "grace_submit_s": 30}'
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -161,11 +164,15 @@ class Attempt(Base):
     student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
     session_id: Mapped[str] = mapped_column(String(64), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False, default="PENDING_APPROVAL")
+    presence_state: Mapped[str] = mapped_column(String(32), nullable=False, default="OFFLINE")
     last_seen: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+    last_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reconnect_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hidden_event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     latest_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     extra_time_s: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -435,3 +442,41 @@ class BackupManifest(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False)
     record_counts_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PresenceEvent(Base):
+    """Timestamped client/network telemetry signals; never proves misconduct on its own."""
+
+    __tablename__ = "presence_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(48), nullable=False)
+    server_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+
+class Incident(Base):
+    """Non-punitive technical or procedural verification incident awaiting teacher action."""
+
+    __tablename__ = "incidents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="OPEN")
+    trigger_type: Mapped[str] = mapped_column(String(48), nullable=False)
+    summary: Mapped[str] = mapped_column(String(250), nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by: Mapped[int | None] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=True)
+    resolution_reason: Mapped[str | None] = mapped_column(String(300), nullable=True)

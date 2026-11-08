@@ -2,7 +2,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes } from "./App";
-import { backupApi, questionApi, roomApi, rosterApi, studentExamApi, systemApi } from "./api/client";
+import {
+  backupApi,
+  monitoringApi,
+  questionApi,
+  roomApi,
+  rosterApi,
+  studentExamApi,
+  systemApi,
+} from "./api/client";
 
 describe("ExamGuard P0 & P1 UI Flows", () => {
   beforeEach(() => {
@@ -221,5 +229,172 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
 
     expect(await screen.findByText("Sao lưu, Khôi phục & Cài đặt hệ thống")).toBeInTheDocument();
     expect(await screen.findByText("examguard_manual_test.zip")).toBeInTheDocument();
+  });
+
+  it("renders teacher T6 live monitoring dashboard and opens incident verification drawer", async () => {
+    vi.spyOn(rosterApi, "listClasses").mockResolvedValue([
+      { id: "c1", name: "12A9", academic_year: "2026-2027", student_count: 1, archived: false },
+    ]);
+    vi.spyOn(questionApi, "listBank").mockResolvedValue([]);
+    vi.spyOn(roomApi, "listRooms").mockResolvedValue([
+      {
+        exam_id: "ex-mon",
+        classroom_id: "c1",
+        room_code: "MON123",
+        title: "Kiểm tra Vật lý",
+        duration_s: 900,
+        status: "RUNNING",
+        remaining_s: 650,
+        is_paused: false,
+        question_count: 5,
+      },
+    ]);
+    vi.spyOn(monitoringApi, "getSnapshot").mockResolvedValue({
+      exam_id: "ex-mon",
+      room_code: "MON123",
+      title: "Kiểm tra Vật lý",
+      status: "RUNNING",
+      is_paused: false,
+      remaining_s: 650,
+      question_count: 5,
+      server_time_utc: "2026-11-08T12:00:00Z",
+      policy: { heartbeat_s: 3, suspected_s: 5, disconnect_s: 15, lock_after_s: 30, grace_submit_s: 30 },
+      summary: {
+        total_students: 1,
+        active_count: 0,
+        submitted_count: 0,
+        pending_count: 0,
+        suspected_count: 0,
+        disconnected_count: 1,
+        locked_count: 1,
+        open_incidents_count: 1,
+      },
+      open_incidents: [
+        {
+          id: "inc-1",
+          attempt_id: "att-1",
+          roster_code: "HS001",
+          full_name: "Nguyễn Văn An",
+          state: "OPEN",
+          trigger_type: "HEARTBEAT_TIMEOUT",
+          summary: "Mất tín hiệu kết nối 32 giây. Cần giáo viên xác minh kỹ thuật.",
+          opened_at: "2026-11-08T12:00:00Z",
+        },
+      ],
+      roster: [
+        {
+          student_id: "s1",
+          roster_code: "HS001",
+          full_name: "Nguyễn Văn An",
+          attempt_id: "att-1",
+          attempt_state: "LOCKED_PENDING_REVIEW",
+          presence_state: "DISCONNECTED",
+          device_bound: true,
+          latest_revision: 3,
+          answered_count: 3,
+          last_heartbeat_at: "2026-11-08T11:59:28Z",
+          heartbeat_age_s: 32,
+          reconnect_count: 1,
+          hidden_event_count: 2,
+          extra_time_s: 0,
+          open_incident_id: "inc-1",
+          open_incident_summary: "Mất tín hiệu kết nối 32 giây. Cần giáo viên xác minh kỹ thuật.",
+          submitted_at: null,
+        },
+      ],
+    });
+    vi.spyOn(monitoringApi, "getTimeline").mockResolvedValue({
+      attempt_id: "att-1",
+      exam_id: "ex-mon",
+      roster_code: "HS001",
+      full_name: "Nguyễn Văn An",
+      attempt_state: "LOCKED_PENDING_REVIEW",
+      presence_state: "DISCONNECTED",
+      extra_time_s: 0,
+      reconnect_count: 1,
+      hidden_event_count: 2,
+      events: [
+        {
+          id: "ev1",
+          event_type: "HEARTBEAT_TIMEOUT",
+          server_time: "2026-11-08T12:00:00Z",
+          details: {},
+        },
+      ],
+      incidents: [
+        {
+          id: "inc-1",
+          state: "OPEN",
+          trigger_type: "HEARTBEAT_TIMEOUT",
+          summary: "Mất tín hiệu kết nối 32 giây. Cần giáo viên xác minh kỹ thuật.",
+          opened_at: "2026-11-08T12:00:00Z",
+          resolved_at: null,
+          resolution_reason: null,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/exams/new"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Sự cố đang chờ giáo viên xác minh/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rời màn hình \(2\) · Cần xác minh/i)).toBeInTheDocument();
+    expect(screen.getByText(/không tự động kết luận gian lận/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^GIAN LẬN$/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xử lý sự cố" }));
+    expect(await screen.findByText(/Hồ sơ sự cố & Nhật ký tín hiệu — HS001/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gia hạn (+phút)" })).toBeInTheDocument();
+  });
+
+  it("renders S5 technical lock screen on /join when attempt is LOCKED_PENDING_REVIEW", async () => {
+    window.sessionStorage.setItem("eg_student_token", "tok-locked");
+    vi.spyOn(roomApi, "getMyAttempt").mockResolvedValue({
+      attempt_id: "att-lock",
+      exam_id: "ex-lock",
+      room_code: "LOCK01",
+      exam_title: "Kiểm tra Hóa",
+      exam_status: "RUNNING",
+      student_id: "s1",
+      student_name: "Lê Minh",
+      roster_code: "HS002",
+      state: "LOCKED_PENDING_REVIEW",
+      presence_state: "DISCONNECTED",
+      remaining_s: 500,
+      is_paused: false,
+      latest_revision: 4,
+      incident_reason: "Mất tín hiệu kết nối quá 30 giây. Cần giáo viên xác minh kỹ thuật.",
+    });
+    vi.spyOn(studentExamApi, "syncAttempt").mockResolvedValue({
+      attempt_id: "att-lock",
+      exam_id: "ex-lock",
+      exam_status: "RUNNING",
+      attempt_state: "LOCKED_PENDING_REVIEW",
+      presence_state: "DISCONNECTED",
+      extra_time_s: 0,
+      is_paused: false,
+      remaining_s: 500,
+      server_time_utc: "2026-11-08T12:05:00Z",
+      latest_revision: 4,
+      saved_answers: {},
+      submitted_at: null,
+      snapshot_hash: null,
+      incident_reason: "Mất tín hiệu kết nối quá 30 giây. Cần giáo viên xác minh kỹ thuật.",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/join"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(
+      await screen.findByText("Bài thi đang tạm khóa chờ giáo viên xác minh")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Máy chủ đã lưu an toàn đến lần sửa #4/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kiểm tra trạng thái mở lại" })).toBeInTheDocument();
   });
 });

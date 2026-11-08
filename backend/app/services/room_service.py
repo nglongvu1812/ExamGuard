@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ from app.db.models import (
     Classroom,
     DeviceBinding,
     Exam,
+    PresenceEvent,
     Student,
     StudentInvite,
 )
@@ -444,6 +446,19 @@ def reset_attempt_device(
     )
     for binding in active_bindings:
         binding.revoked_at = now
+
+    attempt.session_id = str(uuid.uuid4())
+    attempt.presence_state = "OFFLINE"
+    db.add(
+        PresenceEvent(
+            id=str(uuid.uuid4()),
+            exam_id=exam_id,
+            attempt_id=attempt.id,
+            event_type="TEACHER_REBIND",
+            server_time=now,
+            details_json=json.dumps({"reason": clean_reason[:160]}, ensure_ascii=False),
+        )
+    )
 
     record_audit_event(
         db,

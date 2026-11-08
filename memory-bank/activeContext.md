@@ -2,9 +2,9 @@
 
 ## Current focus
 
-- Phase: P4 — Realtime Monitoring & Security/Fairness (`EG-401`..`EG-408`).
-- Objective: Triển khai WebSocket phòng thi `/ws/v1/room/{room_id}` có xác thực teacher/student, heartbeat & threshold grace configurable (3s/5s/15s), ghi nhận `visibilitychange`/`pagehide` trung lập (không kết luận gian lận tự động), `PresenceEvent` & `Incident`, bảng điều khiển giám sát thời gian thực cho giáo viên + xử lý `Mở lại` / `Gia hạn` / `Kết thúc` có audit, màn hình sự cố kỹ thuật cho học sinh và negative security tests.
+- Phase: P5 — Scoring, Audit, Publication, Receipts (`EG-501`..`EG-510`).
+- Objective: Triển khai động cơ chấm điểm thuần túy xác thực từ `Submission` + `AnswerKeyVersion`, chu trình kiểm duyệt và công bố (`CLOSED -> REVIEWED -> PUBLISHED`), chấm lại tạo `GradeRun` + `ScoreVersion` (`supersedes_id`) có lý do & audit, chặn tuyệt đối truy cập đáp án/điểm trước `PUBLISHED`, xác minh chuỗi hash `AuditEvent`, xuất bảng điểm Excel (chống formula injection), xuất biên nhận PDF (font Việt bundled offline) / PNG share card (che thông tin nhạy cảm), phúc khảo & xem kết quả học sinh (`T7`, `T8`, `S7`).
 
 ## Last completed work
 
-- 2026-11-08: Hoàn thành Phase P3 (`EG-301`..`EG-310` DONE). 20/20 pytest + 6/6 vitest + lint/typecheck/build PASS. Báo cáo tại `docs/phase-reports/PHASE_P3_REPORT.md`.
+- 2026-11-08: Hoàn thành Phase P4 (`EG-401`..`EG-406`, `EG-408` DONE; `EG-407` REVIEW). `tools/verify.ps1` PASS (22/22 pytest, 8/8 vitest, ruff, mypy, eslint, tsc, vite build). Báo cáo tại `docs/phase-reports/PHASE_P4_REPORT.md` và `docs/MONITORING_MATRIX.md`.

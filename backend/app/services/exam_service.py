@@ -131,7 +131,15 @@ def create_configured_exam(
         )
 
     final_seed = seed if (seed is not None and seed > 0) else secrets.randbelow(2_147_483_647) + 1
-    policy_payload = policy or {"heartbeat_s": 3, "suspected_s": 5, "disconnect_s": 15, "grace_submit_s": 30}
+    default_policy: dict[str, int] = {
+        "heartbeat_s": 3,
+        "suspected_s": 5,
+        "disconnect_s": 15,
+        "lock_after_s": 30,
+        "grace_submit_s": 30,
+    }
+    if policy:
+        default_policy.update({k: int(v) for k, v in policy.items()})
     exam = Exam(
         id=str(uuid.uuid4()),
         classroom_id=classroom_id,
@@ -142,7 +150,7 @@ def create_configured_exam(
         seed=final_seed,
         shuffle_questions=shuffle_questions,
         shuffle_options=shuffle_options,
-        policy_json=json.dumps(policy_payload),
+        policy_json=json.dumps(default_policy),
     )
     db.add(exam)
     db.flush()
@@ -450,7 +458,10 @@ def start_exam_session(db: Session, *, exam_id: str, teacher_id: int) -> Exam:
     )
     for att in ready_attempts:
         att.state = "ACTIVE"
+        att.presence_state = "ACTIVE"
         att.started_at = now
+        att.last_heartbeat_at = now
+        att.last_seen = now
 
     record_audit_event(
         db,

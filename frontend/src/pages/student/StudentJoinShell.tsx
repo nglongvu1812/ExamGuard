@@ -103,18 +103,30 @@ export function StudentJoinShell({ health, healthError }: StudentJoinShellProps)
     setAttempt(null);
   };
 
+  const handleTokenRefreshed = useCallback((newToken: string) => {
+    window.sessionStorage.setItem("eg_student_token", newToken);
+    setStudentToken(newToken);
+  }, []);
+
   if (
     attempt &&
     studentToken &&
     attempt.exam_status === "RUNNING" &&
-    (attempt.state === "READY" || attempt.state === "ACTIVE")
+    (attempt.state === "READY" ||
+      attempt.state === "ACTIVE" ||
+      attempt.state === "LOCKED_PENDING_REVIEW" ||
+      attempt.state === "ENDED_WITH_REVIEW")
   ) {
     return (
       <StudentExamPage
         studentToken={studentToken}
         attemptId={attempt.attempt_id}
+        examId={attempt.exam_id}
+        initialAttemptState={attempt.state}
+        initialIncidentReason={attempt.incident_reason ?? null}
         studentName={attempt.student_name}
         rosterCode={attempt.roster_code}
+        onTokenRefreshed={handleTokenRefreshed}
         onSubmitted={() => void refreshNow()}
       />
     );
