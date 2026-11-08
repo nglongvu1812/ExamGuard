@@ -7,9 +7,11 @@ import {
 } from "./api/client";
 import { TeacherLayout } from "./layouts/TeacherLayout";
 import { StudentJoinShell } from "./pages/student/StudentJoinShell";
+import { ClassesPage } from "./pages/teacher/ClassesPage";
 import { DashboardPage } from "./pages/teacher/DashboardPage";
 import { LanHelpPage } from "./pages/teacher/LanHelpPage";
 import { PlaceholderSection } from "./pages/teacher/PlaceholderSection";
+import { WaitingRoomPage } from "./pages/teacher/WaitingRoomPage";
 
 export function AppRoutes() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -73,16 +75,7 @@ export function AppRoutes() {
                   />
                 }
               />
-              <Route
-                path="/classes"
-                element={
-                  <PlaceholderSection
-                    title="Quản lý lớp học & danh sách học sinh"
-                    description="Nhập danh sách học sinh từ Excel/CSV, kiểm tra trùng mã và quản lý lịch sử lớp học."
-                    phaseLabel="Phase P1"
-                  />
-                }
-              />
+              <Route path="/classes" element={<ClassesPage />} />
               <Route
                 path="/questions"
                 element={
@@ -93,16 +86,7 @@ export function AppRoutes() {
                   />
                 }
               />
-              <Route
-                path="/exams/new"
-                element={
-                  <PlaceholderSection
-                    title="Tạo bài kiểm tra & mở phòng thi"
-                    description="Chọn lớp, chọn đề đã duyệt, cấu hình thời gian làm bài, trộn câu hỏi/đáp án và mở phòng chờ."
-                    phaseLabel="Phase P3"
-                  />
-                }
-              />
+              <Route path="/exams/new" element={<WaitingRoomPage />} />
               <Route
                 path="/results"
                 element={

@@ -19,13 +19,13 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-101 | TODO | Classroom/student CRUD service/API/database + tests |
-| EG-102 | TODO | Import CSV/XLSX preview, dry-run duplicate resolution, test malformed sheets |
-| EG-103 | TODO | Teacher roster UI with search/edit/archive and history preservation |
-| EG-104 | TODO | Random invite codes hashed, expiry and rate limiting |
-| EG-105 | TODO | Student join pending + teacher approval UI + race test |
-| EG-106 | TODO | One active attempt/student + browser binding/revoke/rebind audit |
-| EG-107 | TODO | Unauthorized cross-student API access negative test |
+| EG-101 | DONE | Classroom/student CRUD service/API/database + tests |
+| EG-102 | DONE | Import CSV/XLSX preview, dry-run duplicate resolution, test malformed sheets |
+| EG-103 | DONE | Teacher roster UI with search/edit/archive and history preservation |
+| EG-104 | DONE | Random invite codes hashed, expiry and rate limiting |
+| EG-105 | DONE | Student join pending + teacher approval UI + race test |
+| EG-106 | DONE | One active attempt/student + browser binding/revoke/rebind audit |
+| EG-107 | DONE | Unauthorized cross-student API access negative test |
 
 ## P2 — Converter
 

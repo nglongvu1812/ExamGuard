@@ -12,12 +12,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.auth import router as auth_router
 from app.api.health import router as system_router
+from app.api.rooms import router as rooms_router
+from app.api.roster import router as roster_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
-from app.db.models import SystemMetadata, TeacherProfile  # noqa: F401
+from app.db.models import (  # noqa: F401
+    Attempt,
+    AuditEvent,
+    ClassMembership,
+    Classroom,
+    DeviceBinding,
+    Exam,
+    Student,
+    StudentInvite,
+    SystemMetadata,
+    TeacherProfile,
+)
 from app.db.session import create_session_factory, create_sqlite_engine
+from app.security.auth import SlidingWindowRateLimiter, load_or_create_server_secret
 
 logger = logging.getLogger("examguard.app")
 
@@ -42,10 +57,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_sqlite_engine(resolved_settings)
         Base.metadata.create_all(bind=engine)
         session_factory = create_session_factory(engine)
+        server_secret = load_or_create_server_secret(resolved_settings.data_dir)
 
         app.state.settings = resolved_settings
         app.state.engine = engine
         app.state.session_factory = session_factory
+        app.state.server_secret = server_secret
+        app.state.join_rate_limiter = SlidingWindowRateLimiter(max_attempts=10, window_seconds=60)
         app.state.bound_port = resolved_settings.port
 
         logger.info("ExamGuard backend started (version=%s)", resolved_settings.app_version)
@@ -61,7 +79,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Local LAN SPA & dev server origins only; no wildcard external cloud dependencies
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -76,6 +93,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(system_router)
+    app.include_router(auth_router)
+    app.include_router(roster_router)
+    app.include_router(rooms_router)
 
     static_dir = _resolve_static_dir(resolved_settings)
     if static_dir is not None:

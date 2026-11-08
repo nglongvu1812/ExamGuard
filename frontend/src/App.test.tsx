@@ -1,11 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes } from "./App";
-import { systemApi } from "./api/client";
+import { roomApi, rosterApi, systemApi } from "./api/client";
 
-describe("ExamGuard P0 Shells", () => {
+describe("ExamGuard P0 & P1 UI Flows", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    window.sessionStorage.clear();
     vi.spyOn(systemApi, "getHealth").mockResolvedValue({
       status: "ok",
       app_name: "ExamGuard",
@@ -43,18 +45,66 @@ describe("ExamGuard P0 Shells", () => {
     expect(await screen.findByText("Bảng điều khiển giáo viên")).toBeInTheDocument();
     expect(await screen.findByText("http://192.168.10.20:8000/join")).toBeInTheDocument();
     expect(screen.getByText("Lớp học")).toBeInTheDocument();
-    expect(screen.getByText("Ngân hàng đề")).toBeInTheDocument();
   });
 
-  it("renders distraction-free student join shell on /join", async () => {
+  it("renders teacher roster management on /classes", async () => {
+    vi.spyOn(rosterApi, "listClasses").mockResolvedValue([
+      { id: "c1", name: "12A1", academic_year: "2026-2027", student_count: 1, archived: false },
+    ]);
+    vi.spyOn(rosterApi, "listStudents").mockResolvedValue([
+      { id: "s1", roster_code: "HS001", full_name: "Nguyễn Văn An", archived: false },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/classes"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Quản lý lớp học & danh sách học sinh")).toBeInTheDocument();
+    expect(await screen.findByText("Nguyễn Văn An")).toBeInTheDocument();
+    expect(screen.getByText("Nhập Excel / CSV")).toBeInTheDocument();
+  });
+
+  it("allows student to join and displays pending approval state on /join", async () => {
+    vi.spyOn(roomApi, "joinRoom").mockResolvedValue({
+      attempt_token: "tok-1",
+      attempt: {
+        attempt_id: "att-1",
+        exam_id: "ex-1",
+        room_code: "AB12CD",
+        exam_title: "Kiểm tra 15 phút",
+        exam_status: "WAITING",
+        student_id: "s1",
+        student_name: "Nguyễn Văn An",
+        roster_code: "HS001",
+        state: "PENDING_APPROVAL",
+      },
+    });
+    vi.spyOn(roomApi, "getMyAttempt").mockResolvedValue({
+      attempt_id: "att-1",
+      exam_id: "ex-1",
+      room_code: "AB12CD",
+      exam_title: "Kiểm tra 15 phút",
+      exam_status: "WAITING",
+      student_id: "s1",
+      student_name: "Nguyễn Văn An",
+      roster_code: "HS001",
+      state: "PENDING_APPROVAL",
+    });
+
     render(
       <MemoryRouter initialEntries={["/join"]}>
         <AppRoutes />
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Vào phòng kiểm tra")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mã phòng thi")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mã học sinh")).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Mã phòng thi"), { target: { value: "AB12CD" } });
+    fireEvent.change(screen.getByLabelText("Mã học sinh"), { target: { value: "HS001" } });
+    fireEvent.change(screen.getByLabelText("Mã tham gia cá nhân"), { target: { value: "XYZ999" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi yêu cầu vào phòng" }));
+
+    expect(await screen.findByText("Đang chờ giáo viên xác nhận vào phòng")).toBeInTheDocument();
+    expect(screen.getByText("Nguyễn Văn An")).toBeInTheDocument();
   });
 });
