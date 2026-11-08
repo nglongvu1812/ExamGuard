@@ -274,3 +274,109 @@ export const roomApi = {
     return fetchJson<AttemptStatusResponse>("/api/v1/attempts/me", undefined, "student", studentToken);
   },
 };
+
+export interface ContentBlockDTO {
+  type: string;
+  text?: string;
+  latex?: string;
+  asset_id?: string;
+  alt?: string;
+  parse_warning?: boolean;
+}
+
+export interface OptionDraftDTO {
+  option_id: string;
+  label: string;
+  blocks: ContentBlockDTO[];
+}
+
+export interface QuestionDraftDTO {
+  id: string;
+  import_job_id: string;
+  position: number;
+  question_type: string;
+  blocks: ContentBlockDTO[];
+  options: OptionDraftDTO[];
+  answer: {
+    correct_option_ids: string[];
+    status: string;
+    provenance: string | null;
+  };
+  source: {
+    file_sha256: string;
+    filename: string;
+    anchors: string[];
+    raw_preview: string;
+  };
+  warnings: string[];
+  confidence: Record<string, number>;
+  status: string;
+  approved_version_id: string | null;
+}
+
+export interface ImportJobResponse {
+  job_id: string;
+  status: string;
+  parser_version: string;
+  summary: {
+    total_questions: number;
+    warnings_count: number;
+    unknown_key_count: number;
+    filename: string;
+    sha256: string;
+  };
+  drafts: QuestionDraftDTO[];
+}
+
+export interface ApprovedQuestionDTO {
+  question_id: string;
+  version_id: string;
+  bank_name: string;
+  version_number: number;
+  blocks: ContentBlockDTO[];
+  options: { option_id: string; label: string; blocks: ContentBlockDTO[] }[];
+  correct_option_ids: string[];
+  approved_at: string;
+}
+
+export const questionApi = {
+  importDocx(file: File): Promise<ImportJobResponse> {
+    const form = new FormData();
+    form.append("file", file);
+    return fetchJson<ImportJobResponse>(
+      "/api/v1/questions/import",
+      { method: "POST", body: form },
+      "teacher"
+    );
+  },
+  getImportJob(jobId: string): Promise<ImportJobResponse> {
+    return fetchJson<ImportJobResponse>(`/api/v1/questions/import/${jobId}`, undefined, "teacher");
+  },
+  updateDraft(
+    draftId: string,
+    payload: { correct_option_ids?: string[]; blocks?: ContentBlockDTO[]; options?: OptionDraftDTO[] }
+  ): Promise<QuestionDraftDTO> {
+    return fetchJson<QuestionDraftDTO>(
+      `/api/v1/questions/drafts/${draftId}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+      "teacher"
+    );
+  },
+  approveDraft(draftId: string, bank_name: string): Promise<{ question_id: string; version_id: string }> {
+    return fetchJson<{ question_id: string; version_id: string }>(
+      `/api/v1/questions/drafts/${draftId}/approve`,
+      { method: "POST", body: JSON.stringify({ bank_name }) },
+      "teacher"
+    );
+  },
+  approveReadyInJob(jobId: string, bank_name: string): Promise<{ approved_count: number; skipped_count: number }> {
+    return fetchJson<{ approved_count: number; skipped_count: number }>(
+      `/api/v1/questions/import/${jobId}/approve-ready`,
+      { method: "POST", body: JSON.stringify({ bank_name }) },
+      "teacher"
+    );
+  },
+  listBank(): Promise<ApprovedQuestionDTO[]> {
+    return fetchJson<ApprovedQuestionDTO[]>("/api/v1/questions/bank", undefined, "teacher");
+  },
+};

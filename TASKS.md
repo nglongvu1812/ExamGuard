@@ -31,15 +31,15 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-201 | TODO | Validated file ingest, checksum and source immutable storage |
-| EG-202 | TODO | DOCX OOXML text/runs/table/content ordering extraction |
-| EG-203 | TODO | DOCX images/relationships and floating/inline anchors handling |
-| EG-204 | TODO | OMML extraction/MathML local render + snapshot fallback |
-| EG-205 | TODO | Question/option segmentation rule engine & provenance |
-| EG-206 | TODO | Draft schema/validation/warnings/confidence per field |
-| EG-207 | TODO | Split-view original/preview and manual correction UI |
-| EG-208 | TODO | Teacher confirmation/key approval, immutable question bank versions |
-| EG-209 | TODO | Fixture benchmark report, malformed document security tests |
+| EG-201 | DONE | Validated file ingest, checksum and source immutable storage |
+| EG-202 | DONE | DOCX OOXML text/runs/table/content ordering extraction |
+| EG-203 | DONE | DOCX images/relationships and floating/inline anchors handling |
+| EG-204 | DONE | OMML extraction/MathML local render + snapshot fallback |
+| EG-205 | DONE | Question/option segmentation rule engine & provenance |
+| EG-206 | DONE | Draft schema/validation/warnings/confidence per field |
+| EG-207 | DONE | Split-view original/preview and manual correction UI |
+| EG-208 | DONE | Teacher confirmation/key approval, immutable question bank versions |
+| EG-209 | DONE | Fixture benchmark report, malformed document security tests |
 
 ## P3 — Exam Engine
 

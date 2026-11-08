@@ -12,20 +12,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.assets import router as assets_router
 from app.api.auth import router as auth_router
 from app.api.health import router as system_router
+from app.api.questions import router as questions_router
 from app.api.rooms import router as rooms_router
 from app.api.roster import router as roster_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.base import Base
 from app.db.models import (  # noqa: F401
+    AnswerKeyVersion,
+    Asset,
     Attempt,
     AuditEvent,
     ClassMembership,
     Classroom,
     DeviceBinding,
     Exam,
+    ImportJob,
+    Question,
+    QuestionDraft,
+    QuestionVersion,
+    SourceDocument,
     Student,
     StudentInvite,
     SystemMetadata,
@@ -96,6 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(roster_router)
     app.include_router(rooms_router)
+    app.include_router(questions_router)
+    app.include_router(assets_router)
 
     static_dir = _resolve_static_dir(resolved_settings)
     if static_dir is not None:

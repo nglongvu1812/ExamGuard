@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes } from "./App";
-import { roomApi, rosterApi, systemApi } from "./api/client";
+import { questionApi, roomApi, rosterApi, systemApi } from "./api/client";
 
 describe("ExamGuard P0 & P1 UI Flows", () => {
   beforeEach(() => {
@@ -106,5 +106,32 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
 
     expect(await screen.findByText("Đang chờ giáo viên xác nhận vào phòng")).toBeInTheDocument();
     expect(screen.getByText("Nguyễn Văn An")).toBeInTheDocument();
+  });
+
+  it("renders question bank & converter page with approved KaTeX item", async () => {
+    vi.spyOn(questionApi, "listBank").mockResolvedValue([
+      {
+        question_id: "q1",
+        version_id: "qv1",
+        bank_name: "Toán 12",
+        version_number: 1,
+        blocks: [
+          { type: "text", text: "Tính " },
+          { type: "math", latex: "\\frac{1}{2}" },
+        ],
+        options: [],
+        correct_option_ids: [],
+        approved_at: "2026-11-08T11:00:00Z",
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/questions"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Ngân hàng đề & Trình chuyển đổi Word (.docx)")).toBeInTheDocument();
+    expect(await screen.findByText("Ngân hàng câu hỏi đã duyệt (1)")).toBeInTheDocument();
   });
 });

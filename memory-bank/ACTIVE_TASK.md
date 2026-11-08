@@ -1,4 +1,4 @@
 # Active Task
 
-- **Task ID:** EG-201 .. EG-209 (Phase P2 — Converter v1 Word & Question Bank)
-- **Mục tiêu:** Xây dựng pipeline import đề thi từ DOCX (hỗ trợ text, bảng, ảnh inline/floating, công thức OMML -> MathML/LaTeX + fallback), tách câu hỏi và đáp án bảo toàn nguyên nghĩa (không đoán key nếu thiếu), giao diện Split-View rà soát sửa chữa và phê duyệt thành phiên bản bất biến trong ngân hàng đề.
+- **Task ID:** EG-301 .. EG-310 (Phase P3 — Exam Engine, Timer, Answer Integrity)
+- **Mục tiêu:** Triển khai tạo kỳ thi từ câu hỏi đã duyệt, trộn câu hỏi & phương án theo seed xác định, vòng đời `DRAFT -> READY -> WAITING -> RUNNING -> CLOSED`, đồng hồ phía server, màn hình thi mobile + lưu đáp án commit-before-ACK idempotent, khôi phục sau ngắt mạng/restart server và sao lưu/phục hồi SQLite.

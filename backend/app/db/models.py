@@ -200,3 +200,126 @@ class AuditEvent(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class SourceDocument(Base):
+    """Immutable uploaded source exam file with SHA-256 checksum."""
+
+    __tablename__ = "source_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    relpath: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class Asset(Base):
+    """Content-addressed media asset extracted offline into ExamGuardData/assets."""
+
+    __tablename__ = "assets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 hex
+    mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    relpath: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class ImportJob(Base):
+    """Tracks document conversion runs and warnings."""
+
+    __tablename__ = "import_jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("source_documents.id"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="COMPLETED")
+    parser_version: Mapped[str] = mapped_column(String(32), nullable=False, default="docx-v1.0")
+    summary_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    error_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class QuestionDraft(Base):
+    """Editable parsed question candidate awaiting teacher confirmation."""
+
+    __tablename__ = "question_drafts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    import_job_id: Mapped[str] = mapped_column(ForeignKey("import_jobs.id"), nullable=False, index=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    question_type: Mapped[str] = mapped_column(String(32), nullable=False, default="single_choice")
+    blocks_json: Mapped[str] = mapped_column(Text, nullable=False)
+    options_json: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_json: Mapped[str] = mapped_column(Text, nullable=False)
+    source_json: Mapped[str] = mapped_column(Text, nullable=False)
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    confidence_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+    approved_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+class Question(Base):
+    """Logical question identity in the approved question bank."""
+
+    __tablename__ = "questions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    bank_name: Mapped[str] = mapped_column(String(120), nullable=False, default="Mặc định")
+    active_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class QuestionVersion(Base):
+    """Immutable approved question snapshot."""
+
+    __tablename__ = "question_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    question_id: Mapped[str] = mapped_column(ForeignKey("questions.id"), nullable=False, index=True)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    content_blocks_json: Mapped[str] = mapped_column(Text, nullable=False)
+    options_json: Mapped[str] = mapped_column(Text, nullable=False)
+    provenance_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    approved_by: Mapped[int] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=False)
+    approved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class AnswerKeyVersion(Base):
+    """Immutable answer key separated from question body to prevent early disclosure."""
+
+    __tablename__ = "answer_key_versions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    question_version_id: Mapped[str] = mapped_column(
+        ForeignKey("question_versions.id"), nullable=False, index=True
+    )
+    correct_option_ids_json: Mapped[str] = mapped_column(Text, nullable=False)
+    approved_by: Mapped[int] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=False)
+    approved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

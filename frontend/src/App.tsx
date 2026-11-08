@@ -11,6 +11,7 @@ import { ClassesPage } from "./pages/teacher/ClassesPage";
 import { DashboardPage } from "./pages/teacher/DashboardPage";
 import { LanHelpPage } from "./pages/teacher/LanHelpPage";
 import { PlaceholderSection } from "./pages/teacher/PlaceholderSection";
+import { QuestionBankPage } from "./pages/teacher/QuestionBankPage";
 import { WaitingRoomPage } from "./pages/teacher/WaitingRoomPage";
 
 export function AppRoutes() {
@@ -76,16 +77,7 @@ export function AppRoutes() {
                 }
               />
               <Route path="/classes" element={<ClassesPage />} />
-              <Route
-                path="/questions"
-                element={
-                  <PlaceholderSection
-                    title="Ngân hàng đề & chuyển đổi Word/PDF"
-                    description="Import file đề giữ nguyên ảnh, bảng biểu và công thức toán học để giáo viên rà soát trước khi duyệt."
-                    phaseLabel="Phase P2"
-                  />
-                }
-              />
+              <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/exams/new" element={<WaitingRoomPage />} />
               <Route
                 path="/results"
