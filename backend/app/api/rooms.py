@@ -11,6 +11,7 @@ from app.db.models import (
     ExamQuestion,
     Incident,
     Student,
+    StudentInvite,
 )
 from app.security.auth import (
     StudentPrincipal,
@@ -255,6 +256,35 @@ def get_room_roster(
             )
         )
     return entries
+
+
+@router.get("/rooms/{exam_id}/invites", response_model=list[IssuedInviteResponse])
+def get_room_invites(
+    exam_id: str,
+    _teacher: TeacherPrincipal = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> list[IssuedInviteResponse]:
+    """Retrieve the issued student invite codes for this exam waiting room."""
+    rows = (
+        db.execute(
+            select(StudentInvite, Student)
+            .join(Student, Student.id == StudentInvite.student_id)
+            .where(StudentInvite.exam_id == exam_id, StudentInvite.revoked_at.is_(None))
+            .order_by(Student.roster_code.asc())
+        )
+        .all()
+    )
+    return [
+        IssuedInviteResponse(
+            student_id=st.id,
+            roster_code=st.roster_code,
+            full_name=st.full_name,
+            invite_code=inv.invite_code or "******",
+            expires_at=inv.expires_at.isoformat(),
+        )
+        for inv, st in rows
+    ]
+
 
 
 @router.post("/rooms/{exam_id}/attempts/{attempt_id}/approve")

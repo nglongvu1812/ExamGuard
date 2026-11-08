@@ -256,6 +256,9 @@ export const roomApi = {
   getRoomRoster(examId: string): Promise<RoomRosterEntryDTO[]> {
     return fetchJson<RoomRosterEntryDTO[]>(`/api/v1/rooms/${examId}/roster`, undefined, "teacher");
   },
+  getRoomInvites(examId: string): Promise<IssuedInviteResponse[]> {
+    return fetchJson<IssuedInviteResponse[]>(`/api/v1/rooms/${examId}/invites`, undefined, "teacher");
+  },
   approveAttempt(examId: string, attemptId: string): Promise<{ attempt_id: string; state: string }> {
     return fetchJson<{ attempt_id: string; state: string }>(
       `/api/v1/rooms/${examId}/attempts/${attemptId}/approve`,
@@ -551,6 +554,13 @@ export const examApi = {
     return fetchJson<ExamDetailDTO>(
       `/api/v1/exams/${examId}/cancel`,
       { method: "POST", body: JSON.stringify({ reason }) },
+      "teacher"
+    );
+  },
+  deleteExam(examId: string): Promise<{ deleted: boolean; exam_id: string; room_code: string }> {
+    return fetchJson<{ deleted: boolean; exam_id: string; room_code: string }>(
+      `/api/v1/exams/${examId}`,
+      { method: "DELETE" },
       "teacher"
     );
   },

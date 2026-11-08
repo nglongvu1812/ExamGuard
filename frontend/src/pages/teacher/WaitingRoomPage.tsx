@@ -48,7 +48,6 @@ export function WaitingRoomPage() {
   const { examId: routeExamId } = useParams<{ examId?: string }>();
   const [classes, setClasses] = useState<ClassroomDTO[]>([]);
   const [bankQuestions, setBankQuestions] = useState<ApprovedQuestionDTO[]>([]);
-  const [rooms, setRooms] = useState<RoomSummaryDTO[]>([]);
 
   // Step 1-4 Wizard state (including configurable monitoring policy!)
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -91,7 +90,6 @@ export function WaitingRoomPage() {
       ]);
       setClasses(clsList);
       setBankQuestions(bankList);
-      setRooms(roomList);
       if (clsList.length > 0 && !selectedClassId) {
         setSelectedClassId(clsList[0]?.id ?? "");
       }
@@ -108,16 +106,7 @@ export function WaitingRoomPage() {
         }
       }
 
-      // Priority 2: Keep current active room if valid
-      if (activeRoom) {
-        const refreshed = roomList.find((r) => r.exam_id === activeRoom.exam_id);
-        if (refreshed) {
-          setActiveRoom(refreshed);
-          return;
-        }
-      }
-
-      // Priority 3: Auto-select active WAITING or RUNNING exam
+      // Priority 2: Auto-select active WAITING or RUNNING exam (Classroom Mode)
       if (activeExam) {
         const matched = roomList.find((r) => r.exam_id === activeExam.exam_id);
         if (matched) {
@@ -125,15 +114,26 @@ export function WaitingRoomPage() {
           return;
         }
       }
-
-      // Priority 4: Fall back to most recent room
-      if (roomList.length > 0 && !activeRoom) {
-        setActiveRoom(roomList[0] ?? null);
+      const activeInList = roomList.find((r) => r.status === "WAITING" || r.status === "RUNNING");
+      if (activeInList) {
+        setActiveRoom(activeInList);
+        return;
       }
+
+      // Priority 3: Keep current room only if valid and not CANCELLED
+      setActiveRoom((prev) => {
+        if (prev && prev.status !== "CANCELLED") {
+          const refreshed = roomList.find((r) => r.exam_id === prev.exam_id);
+          if (refreshed && refreshed.status !== "CANCELLED") {
+            return refreshed;
+          }
+        }
+        return null;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được dữ liệu cấu hình phòng thi.");
     }
-  }, [selectedClassId, activeRoom, selectedQIds.length, routeExamId]);
+  }, [selectedClassId, selectedQIds.length, routeExamId]);
 
   const loadMonitoringSnapshot = useCallback(async (examId: string) => {
     try {
@@ -143,7 +143,6 @@ export function WaitingRoomPage() {
       ]);
       setSnapshot(snap);
       setLivePolicy(snap.policy);
-      setRooms(roomList);
       const updated = roomList.find((r) => r.exam_id === examId);
       if (updated) setActiveRoom(updated);
     } catch (err) {
@@ -155,9 +154,14 @@ export function WaitingRoomPage() {
     void loadBase();
   }, [loadBase]);
 
-  // Real-time WebSocket stream + 3s HTTP fallback polling
+  // Real-time WebSocket stream + 3s HTTP fallback polling + auto-load invites for WAITING rooms
   useEffect(() => {
     if (!activeRoom) return;
+
+    if (activeRoom.status === "WAITING") {
+      void roomApi.getRoomInvites(activeRoom.exam_id).then(setInvites).catch(() => {});
+    }
+
     void loadMonitoringSnapshot(activeRoom.exam_id);
     const pollTimer = setInterval(() => void loadMonitoringSnapshot(activeRoom.exam_id), 3000);
 
@@ -328,7 +332,7 @@ export function WaitingRoomPage() {
     if (!activeRoom) return;
     if (
       !window.confirm(
-        `Xác nhận HỦY / XÓA phòng chờ ${activeRoom.room_code}? Học sinh sẽ không thể tham gia vào phòng này nữa.`
+        `Xác nhận HỦY phòng chờ ${activeRoom.room_code}? Trạng thái phòng sẽ chuyển sang CANCELLED.`
       )
     ) {
       return;
@@ -341,6 +345,28 @@ export function WaitingRoomPage() {
       await loadBase();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể hủy phòng chờ.");
+    }
+  };
+
+  const handleDeleteExam = async () => {
+    if (!activeRoom) return;
+    if (
+      !window.confirm(
+        `XÁC NHẬN XÓA VĨNH VIỄN phòng thi ${activeRoom.room_code}?\n\nToàn bộ dữ liệu của phòng này sẽ bị xóa hoàn toàn khỏi máy chủ.`
+      )
+    ) {
+      return;
+    }
+    try {
+      setError(null);
+      await examApi.deleteExam(activeRoom.exam_id);
+      setNotice(`Đã xóa vĩnh viễn phòng ${activeRoom.room_code}.`);
+      setActiveRoom(null);
+      setSnapshot(null);
+      setInvites([]);
+      await loadBase();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể xóa phòng thi.");
     }
   };
 
@@ -658,33 +684,23 @@ export function WaitingRoomPage() {
             Mở phòng chờ & Cấp mã mời
           </button>
         </form>
-
-        {rooms.length > 0 ? (
-          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Phòng thi gần đây:</span>
-            {rooms.slice(0, 6).map((r) => (
-              <button
-                key={r.exam_id}
-                type="button"
-                onClick={() => setActiveRoom(r)}
-                className={`font-mono-data rounded-md border px-2.5 py-1 text-xs ${
-                  activeRoom?.exam_id === r.exam_id
-                    ? "border-[#1E3A5F] bg-[#1E3A5F] text-white"
-                    : "border-slate-300 bg-slate-50 text-slate-700"
-                }`}
-              >
-                {r.room_code} · {r.status}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </section>
 
-      {invites.length > 0 ? (
+      {invites.length > 0 && activeRoom?.status === "WAITING" ? (
         <section className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <h2 className="text-sm font-bold text-amber-950">
-            Mã tham gia cá nhân cho phòng {activeRoom?.room_code} (Chỉ hiển thị một lần)
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-amber-950">
+                Danh sách mã tham gia cho phòng {activeRoom.room_code}
+              </h2>
+              <p className="mt-0.5 text-xs text-amber-800">
+                Cung cấp mã cho từng học sinh để đăng nhập bài thi trên điện thoại.
+              </p>
+            </div>
+            <span className="font-mono-data rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+              {invites.length} học sinh
+            </span>
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-3 md:grid-cols-4">
             {invites.map((inv) => (
               <div
@@ -791,13 +807,33 @@ export function WaitingRoomPage() {
                   <button
                     type="button"
                     onClick={() => void handleCancelExam()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                    title="Hủy phòng chờ hiện tại (chuyển sang CANCELLED)"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Hủy phòng chờ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteExam()}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
-                    title="Hủy phòng chờ hiện tại để tránh xung đột mã phòng"
+                    title="Xóa vĩnh viễn phòng thi này khỏi cơ sở dữ liệu"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Hủy phòng chờ này</span>
+                    <span>Xóa phòng thi</span>
                   </button>
                 </>
+              ) : null}
+              {activeRoom.status === "CANCELLED" ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteExam()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                  title="Xóa vĩnh viễn phòng thi đã hủy này khỏi hệ thống"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Xóa phòng thi</span>
+                </button>
               ) : null}
               {activeRoom.status === "RUNNING" ? (
                 <>
@@ -831,13 +867,24 @@ export function WaitingRoomPage() {
                 </>
               ) : null}
               {["CLOSED", "REVIEWED", "PUBLISHED"].includes(activeRoom.status) ? (
-                <Link
-                  to={`/results?examId=${encodeURIComponent(activeRoom.exam_id)}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1E3A5F] px-3.5 py-1.5 text-xs font-semibold text-white"
-                >
-                  <Award className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Chấm điểm & Công bố</span>
-                </Link>
+                <>
+                  <Link
+                    to={`/results?examId=${encodeURIComponent(activeRoom.exam_id)}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#1E3A5F] px-3.5 py-1.5 text-xs font-semibold text-white"
+                  >
+                    <Award className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Chấm điểm & Công bố</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteExam()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                    title="Xóa vĩnh viễn kỳ thi này khỏi hệ thống"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Xóa phòng thi</span>
+                  </button>
+                </>
               ) : null}
             </div>
           </div>

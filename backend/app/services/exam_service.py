@@ -9,6 +9,7 @@ import random
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.db.models import (
     AnswerKeyVersion,
@@ -16,10 +17,18 @@ from app.db.models import (
     Attempt,
     ClassMembership,
     Classroom,
+    DeviceBinding,
     Exam,
     ExamPermutation,
     ExamQuestion,
+    GradeRun,
+    Incident,
+    OmrScanSubmission,
+    PaperVersion,
+    PresenceEvent,
     QuestionVersion,
+    ReceiptVersion,
+    ScoreVersion,
     Student,
     StudentInvite,
     Submission,
@@ -28,7 +37,7 @@ from app.security.auth import INVITE_ALPHABET, generate_invite_code, hash_secret
 from app.services.audit_service import record_audit_event
 from app.services.room_service import IssuedInviteDTO
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -315,6 +324,7 @@ def _transition_to_waiting_and_issue_invites(
                 exam_id=exam.id,
                 student_id=st.id,
                 code_hash=hash_secret_value(plaintext_code, server_secret),
+                invite_code=plaintext_code,
                 issued_at=now,
                 expires_at=expires_at,
             )
@@ -667,4 +677,51 @@ def cancel_exam_session(db: Session, *, exam_id: str, reason: str, teacher_id: i
     db.commit()
     db.refresh(exam)
     return exam
+
+
+def delete_exam_session(db: Session, *, exam_id: str, teacher_id: int) -> dict[str, Any]:
+    """Completely delete an exam and all its associated child records from the local database."""
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỳ thi.")
+    if exam.status == "RUNNING":
+        raise HTTPException(
+            status_code=409,
+            detail="Không thể xóa kỳ thi đang diễn ra. Vui lòng đóng hoặc hủy phòng thi trước.",
+        )
+
+    attempts = db.execute(select(Attempt).where(Attempt.exam_id == exam.id)).scalars().all()
+    att_ids = [a.id for a in attempts]
+
+    if att_ids:
+        db.execute(delete(AnswerRevision).where(AnswerRevision.attempt_id.in_(att_ids)))
+        db.execute(delete(DeviceBinding).where(DeviceBinding.attempt_id.in_(att_ids)))
+        db.execute(delete(Incident).where(Incident.attempt_id.in_(att_ids)))
+        db.execute(delete(PresenceEvent).where(PresenceEvent.attempt_id.in_(att_ids)))
+
+    db.execute(delete(OmrScanSubmission).where(OmrScanSubmission.exam_id == exam.id))
+    db.execute(delete(PaperVersion).where(PaperVersion.exam_id == exam.id))
+    db.execute(delete(ReceiptVersion).where(ReceiptVersion.exam_id == exam.id))
+    db.execute(delete(ScoreVersion).where(ScoreVersion.exam_id == exam.id))
+    db.execute(delete(GradeRun).where(GradeRun.exam_id == exam.id))
+    db.execute(delete(Submission).where(Submission.exam_id == exam.id))
+    db.execute(delete(ExamPermutation).where(ExamPermutation.exam_id == exam.id))
+    db.execute(delete(ExamQuestion).where(ExamQuestion.exam_id == exam.id))
+    db.execute(delete(StudentInvite).where(StudentInvite.exam_id == exam.id))
+    db.execute(delete(Attempt).where(Attempt.exam_id == exam.id))
+
+    record_audit_event(
+        db,
+        actor_type="teacher",
+        actor_id=str(teacher_id),
+        action="DELETE_EXAM",
+        target_type="exam",
+        target_id=exam.id,
+        details={"room_code": exam.room_code, "title": exam.title, "status": exam.status},
+    )
+
+    db.delete(exam)
+    db.commit()
+    return {"deleted": True, "exam_id": exam_id, "room_code": exam.room_code}
+
 

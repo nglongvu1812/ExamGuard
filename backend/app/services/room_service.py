@@ -125,6 +125,7 @@ def create_waiting_room_session(
                 exam_id=exam.id,
                 student_id=st.id,
                 code_hash=hash_secret_value(plaintext_code, server_secret),
+                invite_code=plaintext_code,
                 issued_at=now,
                 expires_at=expires_at,
             )

@@ -181,6 +181,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if assets_path.exists():
             app.mount("/assets", StaticFiles(directory=assets_path), name="static-assets")
 
+        @app.get("/favicon.ico", include_in_schema=False)
+        def get_favicon_ico() -> FileResponse:
+            ico_file = static_dir / "favicon.ico"
+            if ico_file.is_file():
+                return FileResponse(
+                    ico_file,
+                    media_type="image/x-icon",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+            raise HTTPException(status_code=404, detail="Favicon not found")
+
+        @app.get("/favicon.svg", include_in_schema=False)
+        def get_favicon_svg() -> FileResponse:
+            svg_file = static_dir / "favicon.svg"
+            if svg_file.is_file():
+                return FileResponse(
+                    svg_file,
+                    media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+            raise HTTPException(status_code=404, detail="Favicon not found")
+
         @app.get("/{full_path:path}", include_in_schema=False)
         def serve_spa(full_path: str) -> FileResponse:
             if full_path.startswith("api/") or full_path.startswith("ws/"):

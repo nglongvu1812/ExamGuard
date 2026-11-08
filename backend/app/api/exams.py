@@ -30,6 +30,7 @@ from app.services.exam_service import (
     close_exam_session,
     compute_remaining_seconds,
     create_configured_exam,
+    delete_exam_session,
     open_exam_waiting_room,
     pause_exam_session,
     resume_exam_session,
@@ -362,6 +363,16 @@ async def post_cancel_exam(
     exam = cancel_exam_session(db, exam_id=exam_id, reason=reason, teacher_id=teacher.teacher_id)
     await _broadcast_exam_transition(request, db, exam)
     return _exam_to_dto(db, exam)
+
+
+@router.delete("/exams/{exam_id}")
+def delete_exam(
+    exam_id: str,
+    teacher: TeacherPrincipal = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return delete_exam_session(db, exam_id=exam_id, teacher_id=teacher.teacher_id)
+
 
 
 

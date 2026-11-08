@@ -143,6 +143,7 @@ class StudentInvite(Base):
     exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
     student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
     code_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    invite_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     issued_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

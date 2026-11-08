@@ -420,3 +420,21 @@ def test_waiting_room_cancellation_and_active_exam_endpoint(tmp_path: Path) -> N
         assert act_res.status_code == 200
         assert act_res.json() is None
 
+        # 6. Verify GET /api/v1/rooms/{exam_id}/invites retrieves the generated invite codes
+        inv_res = client.get(f"/api/v1/rooms/{exam2_id}/invites", headers=headers)
+        assert inv_res.status_code == 200
+        invites = inv_res.json()
+        assert len(invites) == 1
+        assert invites[0]["roster_code"] == "HS901"
+        assert len(invites[0]["invite_code"]) == 6
+        assert invites[0]["invite_code"] != "******"
+
+        # 7. Delete exam completely from DB
+        del_res = client.delete(f"/api/v1/exams/{exam2_id}", headers=headers)
+        assert del_res.status_code == 200
+        assert del_res.json()["deleted"] is True
+
+        # Deleted exam should return 404
+        assert client.get(f"/api/v1/exams/{exam2_id}", headers=headers).status_code == 404
+
+
