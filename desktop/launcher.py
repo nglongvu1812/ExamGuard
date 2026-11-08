@@ -29,7 +29,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-APP_RELEASE_VERSION = "0.1.0-beta.1"
+APP_RELEASE_VERSION = "0.1.1"
 
 
 @dataclass(frozen=True)

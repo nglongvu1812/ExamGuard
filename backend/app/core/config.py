@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "ExamGuard"
-    app_version: str = "0.1.0"
+    app_version: str = "0.1.1"
     host: str = "0.0.0.0"
     port: int = 8000
     data_dir: Path = Field(default_factory=_default_data_dir)

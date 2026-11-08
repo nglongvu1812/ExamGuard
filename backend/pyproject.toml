@@ -1,6 +1,6 @@
 [project]
 name = "examguard-backend"
-version = "0.1.0"
+version = "0.1.1"
 description = "ExamGuard LAN Offline-First Assessment Server"
 requires-python = ">=3.12"
 dependencies = [
