@@ -77,9 +77,12 @@ def _resolve_static_dir(settings: Settings) -> Path | None:
         frozen_dist = Path(meipass) / "frontend" / "dist"
         if frozen_dist.exists() and (frozen_dist / "index.html").exists():
             return frozen_dist
-    candidate = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    candidate = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if candidate.exists() and (candidate / "index.html").exists():
         return candidate
+    candidate_alt = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    if candidate_alt.exists() and (candidate_alt / "index.html").exists():
+        return candidate_alt
     return None
 
 

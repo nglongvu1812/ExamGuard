@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient (Deep Navy to Rich Midnight Blue) -->
+    <linearGradient id="egBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A5F"/>
+      <stop offset="60%" stop-color="#11253E"/>
+      <stop offset="100%" stop-color="#091422"/>
+    </linearGradient>
+
+    <!-- Outer Border Gradient -->
+    <linearGradient id="egBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.85"/>
+      <stop offset="40%" stop-color="#0284C7" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0F766E" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <!-- Shield Gradient -->
+    <linearGradient id="egShieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#244B77"/>
+      <stop offset="100%" stop-color="#0D2035"/>
+    </linearGradient>
+
+    <!-- Checkmark Gradient (Vibrant Emerald / Cyan) -->
+    <linearGradient id="egCheckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="50%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <!-- Soft Drop Shadows -->
+    <filter id="egShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="egGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#10B981" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle Base Tile -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#egBgGrad)" filter="url(#egShadow)"/>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="none" stroke="url(#egBorderGrad)" stroke-width="8"/>
+
+  <!-- Shield Shape (Symbol of Security & LAN offline isolation) -->
+  <path d="M 256 100 C 332 100 384 122 384 162 C 384 278 332 368 256 414 C 180 368 128 278 128 162 C 128 122 180 100 256 100 Z"
+        fill="url(#egShieldGrad)"
+        stroke="#38BDF8"
+        stroke-width="12"
+        stroke-linejoin="round"
+        stroke-opacity="0.75"
+        filter="url(#egShadow)"/>
+
+  <!-- Exam Lines (Subtle ledger representing test paper) -->
+  <path d="M 204 182 L 308 182" stroke="#60A5FA" stroke-width="8" stroke-linecap="round" stroke-opacity="0.4"/>
+  <path d="M 204 218 L 268 218" stroke="#60A5FA" stroke-width="8" stroke-linecap="round" stroke-opacity="0.4"/>
+
+  <!-- High-contrast Bold Checkmark (Verifying Integrity & Fair Score) -->
+  <path d="M 196 270 L 236 312 L 324 214"
+        fill="none"
+        stroke="url(#egCheckGrad)"
+        stroke-width="38"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#egGlow)"/>
+</svg>
