@@ -57,10 +57,12 @@ Tài liệu rà soát điều kiện kỹ thuật, bản quyền phụ thuộc, 
 
 ### 5.1. Bản dựng Portable Windows (`tools/build_portable.ps1`)
 - **Tệp phân phối:** `dist/release/ExamGuard-v0.1.0-beta.1-win64-portable.zip`
-- **Dung lượng ZIP:** **47.55 MB**
-- **Dung lượng thư mục Onedir giải nén:** **92.66 MB**
+- **Dung lượng ZIP:** **47.66 MB**
+- **Dung lượng thư mục Onedir giải nén:** **92.81 MB**
 - **Dung lượng tệp `ExamGuard.exe`:** **17.01 MB**
-- **Mã băm SHA-256:** `ebac10dab861ceb7ef09131144fc2a166bf22745b04908b1925bd505246b64b2`
+- **Tệp khởi chạy nhanh:** `ExamGuard.bat` (nhấp đúp tự khởi chạy máy chủ không cần mở dòng lệnh)
+- **Thư mục mẫu đi kèm (`samples/`):** Gồm danh sách lớp mẫu 40 học sinh (`sample_roster_40.xlsx`), đề toán-vật lý 20 câu có công thức OMML/hình vẽ (`sample_exam_math_physics_20q.docx`), đề chuẩn 50 câu (`sample_exam_standard_50q.xlsx`), và phiếu OMR tô mẫu (`sample_omr_sheet_filled.png`).
+- **Mã băm SHA-256:** `82c0803b96feb0cdcd3e5e8aef7419bf207f46139db70bade8f9ab5a7fb1edec`
 - **Khởi chạy lạnh (Cold-boot smoke check):** Đạt trên Microsoft Windows 11 Pro Build 28000; khởi tạo CSDL WAL và thư mục `ExamGuardData` độc lập không cần quyền Administrator; kiểm tra socket kết nối ghi nhận **0 kết nối ra ngoài Internet**.
 
 ### 5.2. Đo tải đồng thời 45 học sinh ảo (`tools/load_test.py` — 3 lượt lặp)

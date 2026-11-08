@@ -52,7 +52,7 @@ $VerOut = & $ExePath --version
 Assert-Ok "ExamGuard.exe --version"
 Write-Host "Version check: $VerOut" -ForegroundColor Green
 
-Write-Host "=== 4. Bundle Offline Guides & Release Archive ===" -ForegroundColor Cyan
+Write-Host "=== 4. Bundle Offline Guides, Samples & Release Archive ===" -ForegroundColor Cyan
 $DocsTarget = Join-Path $BundleDir "docs"
 New-Item -ItemType Directory -Force -Path $DocsTarget | Out-Null
 foreach ($DocName in @("LAN_AP_GUIDE.md", "TEACHER_QUICKSTART.md", "STUDENT_QUICKSTART.md", "RELEASE_CHECKLIST.md")) {
@@ -63,6 +63,16 @@ foreach ($DocName in @("LAN_AP_GUIDE.md", "TEACHER_QUICKSTART.md", "STUDENT_QUIC
 }
 if (Test-Path (Join-Path $RepoRoot "CHANGELOG.md")) {
     Copy-Item -Force (Join-Path $RepoRoot "CHANGELOG.md") (Join-Path $BundleDir "CHANGELOG.md")
+}
+if (Test-Path (Join-Path $RepoRoot "ExamGuard.bat")) {
+    Copy-Item -Force (Join-Path $RepoRoot "ExamGuard.bat") (Join-Path $BundleDir "ExamGuard.bat")
+}
+
+$SamplesTarget = Join-Path $BundleDir "samples"
+New-Item -ItemType Directory -Force -Path $SamplesTarget | Out-Null
+$SrcSamples = Join-Path $RepoRoot "samples"
+if (Test-Path $SrcSamples) {
+    Copy-Item -Recurse -Force (Join-Path $SrcSamples "*") $SamplesTarget
 }
 
 $ZipName = "ExamGuard-v$Version-win64-portable.zip"
