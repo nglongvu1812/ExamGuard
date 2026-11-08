@@ -23,6 +23,8 @@ from app.db.models import (
     ExamQuestion,
     GradeRun,
     Incident,
+    OmrScanSubmission,
+    PaperVersion,
     PresenceEvent,
     QuestionVersion,
     ReceiptVersion,
@@ -612,6 +614,8 @@ def _status_label_vi(attempt: Attempt | None, submission: Submission | None) -> 
             return "Khóa tự động khi đóng phòng"
         if submission.submission_mode == "teacher_terminate_review":
             return "Kết thúc sau xác minh"
+        if submission.submission_mode == "paper_omr_confirmed":
+            return "Thi giấy (OMR đã xác nhận)"
         return "Đã nộp bài"
     if attempt is None:
         return "Chưa vào phòng"
@@ -858,6 +862,18 @@ def get_student_phuc_khao_trace(
     )
     q_order: list[str] = json.loads(perm.question_order_json) if perm else qvids
     opt_order_map: dict[str, list[str]] = json.loads(perm.option_order_json) if perm else {}
+    if perm is None and submission is not None and submission.submission_mode == "paper_omr_confirmed":
+        linked_scan = db.execute(
+            select(OmrScanSubmission)
+            .where(OmrScanSubmission.linked_submission_id == submission.id)
+            .order_by(OmrScanSubmission.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if linked_scan is not None and linked_scan.paper_version_id:
+            pv = db.get(PaperVersion, linked_scan.paper_version_id)
+            if pv is not None:
+                q_order = json.loads(pv.question_order_json)
+                opt_order_map = json.loads(pv.option_order_json)
 
     revisions: list[AnswerRevision] = []
     presence_events: list[PresenceEvent] = []

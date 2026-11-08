@@ -358,14 +358,18 @@ export interface ApprovedQuestionDTO {
 }
 
 export const questionApi = {
-  importDocx(file: File): Promise<ImportJobResponse> {
+  importFile(file: File, profile: string = "auto"): Promise<ImportJobResponse> {
     const form = new FormData();
     form.append("file", file);
+    form.append("profile", profile);
     return fetchJson<ImportJobResponse>(
       "/api/v1/questions/import",
       { method: "POST", body: form },
       "teacher"
     );
+  },
+  importDocx(file: File): Promise<ImportJobResponse> {
+    return questionApi.importFile(file, "auto");
   },
   getImportJob(jobId: string): Promise<ImportJobResponse> {
     return fetchJson<ImportJobResponse>(`/api/v1/questions/import/${jobId}`, undefined, "teacher");
@@ -1148,5 +1152,108 @@ export const studentResultApi = {
   },
   downloadShareCardPng(studentToken: string): Promise<{ blob: Blob; filename: string | null }> {
     return fetchAuthenticatedBlob("/api/v1/attempts/me/share-card.png", "student", studentToken);
+  },
+};
+
+export interface PaperVersionDTO {
+  id: string;
+  version_code: string;
+  question_count: number;
+  answer_key_map: Record<string, string[]>;
+  created_at: string;
+}
+
+export interface OmrScanSubmissionDTO {
+  scan_id: string;
+  exam_id: string;
+  student_id: string | null;
+  student_name: string | null;
+  roster_code: string | null;
+  paper_version_id: string | null;
+  version_code: string | null;
+  roster_code_detected: string;
+  version_code_detected: string;
+  source_sha256: string;
+  detected_answers: Record<string, string | null>;
+  confirmed_answers: Record<string, string | null>;
+  confidence: {
+    fiducial_found?: boolean;
+    questions?: Record<
+      string,
+      { status: string; confidence: number; scores?: Record<string, number> }
+    >;
+  };
+  ambiguous_flags: string[];
+  overall_confidence: number;
+  status: "NEEDS_REVIEW" | "CONFIRMED";
+  linked_submission_id: string | null;
+  confirmed_at: string | null;
+  reason: string;
+  created_at: string;
+}
+
+export const paperApi = {
+  generateVersions(
+    examId: string,
+    count: number = 4,
+    start_code: number = 101
+  ): Promise<{ exam_id: string; versions: PaperVersionDTO[] }> {
+    return fetchJson(
+      `/api/v1/paper/exams/${examId}/versions`,
+      { method: "POST", body: JSON.stringify({ count, start_code }) },
+      "teacher"
+    );
+  },
+  listVersions(examId: string): Promise<{ exam_id: string; versions: PaperVersionDTO[] }> {
+    return fetchJson(`/api/v1/paper/exams/${examId}/versions`, undefined, "teacher");
+  },
+  downloadBookletPdf(examId: string): Promise<{ blob: Blob; filename: string | null }> {
+    return fetchAuthenticatedBlob(`/api/v1/paper/exams/${examId}/booklet.pdf`, "teacher");
+  },
+  downloadOmrSheet(
+    examId: string,
+    fmt: "pdf" | "png" = "pdf"
+  ): Promise<{ blob: Blob; filename: string | null }> {
+    return fetchAuthenticatedBlob(
+      `/api/v1/paper/exams/${examId}/omr-sheet.pdf?fmt=${fmt}`,
+      "teacher"
+    );
+  },
+  uploadScan(examId: string, file: File): Promise<OmrScanSubmissionDTO> {
+    const form = new FormData();
+    form.append("file", file);
+    return fetchJson<OmrScanSubmissionDTO>(
+      `/api/v1/paper/exams/${examId}/scans`,
+      { method: "POST", body: form },
+      "teacher"
+    );
+  },
+  listScans(examId: string): Promise<OmrScanSubmissionDTO[]> {
+    return fetchJson<OmrScanSubmissionDTO[]>(
+      `/api/v1/paper/exams/${examId}/scans`,
+      undefined,
+      "teacher"
+    );
+  },
+  fetchScanImage(scanId: string, aligned: boolean = false): Promise<Blob> {
+    return fetchAuthenticatedBlob(
+      `/api/v1/paper/scans/${scanId}/image?aligned=${aligned ? "true" : "false"}`,
+      "teacher"
+    ).then((res) => res.blob);
+  },
+  confirmScan(
+    scanId: string,
+    payload: {
+      student_id: string;
+      version_code: string;
+      confirmed_answers: Record<string, string | null>;
+      reason: string;
+    }
+  ): Promise<OmrScanSubmissionDTO & { submission_id: string; regraded: boolean }> {
+    return fetchJson(
+      `/api/v1/paper/scans/${scanId}/confirm`,
+      { method: "POST", body: JSON.stringify(payload) },
+      "teacher"
+    );
   },
 };

@@ -5,4 +5,5 @@
 - **Phase P2 (`EG-201`..`EG-209` DONE):** Commit `3cf036a`.
 - **Phase P3 (`EG-301`..`EG-310` DONE):** Commit `f2e6ffd`.
 - **Phase P4 (`EG-401`..`EG-406`, `EG-408` DONE; `EG-407` REVIEW):** Commit `36c4375`.
-- **Phase P5 (`EG-501`..`EG-510` DONE):** Pure deterministic scoring, versioned `AnswerKeyVersion` / `GradeRun` / `ScoreVersion` / `ReceiptVersion`, `CLOSED -> REVIEWED -> PUBLISHED` gate, audit SHA-256 chain check, formula-safe XLSX export, offline PDF receipt + PII-masked PNG share card, Phúc khảo trace & `T7`/`T8`/`S7` UIs. Verified by `tools/verify.ps1` (`26/26` pytest, `10/10` vitest).
+- **Phase P5 (`EG-501`..`EG-510` DONE):** Commit `f12e340`.
+- **Phase P6 (`EG-601`..`EG-609` DONE):** Deterministic paper versions + offline A4 booklet/OMR PDF (`DejaVuSans.ttf`), Pillow+NumPy homography OMR engine with confidence/ambiguity flags + immutable scan storage + shared `GradeRun`/`ScoreVersion` bridge, `pypdf` 2-col/vector/low-text PDF & multi-profile XLSX converters, `/paper` + multi-format `/questions` UI. Verified by `tools/verify.ps1` (`29/29` pytest, `11/11` vitest) and real benchmark metrics.

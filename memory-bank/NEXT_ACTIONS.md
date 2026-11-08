@@ -1,5 +1,7 @@
 # Next Actions
 
-1. Cài bổ sung thư viện giấy phép mở tương thích (`pypdf` BSD, `numpy` BSD) trong `backend/.venv` và cập nhật `backend/pyproject.toml` + `backend/requirements.lock.txt`.
-2. Triển khai Phase P6 (`EG-601`..`EG-609`): migration `0007_paper_bridge_and_omr.py`, `paper_service.py` + `omr_service.py` + `api/paper.py`, `pdf_adapter.py` + `xlsx_converter.py`, UI `PaperBridgePage.tsx` & mở rộng upload `.pdf`/`.xlsx` trong `QuestionBankPage.tsx`.
-3. Tạo `backend/tests/test_p6_paper_and_converters.py` và chạy `tools/verify.ps1`, xuất `docs/phase-reports/PHASE_P6_REPORT.md`, sau đó tự động chuyển sang P7 (PyInstaller Portable EXE, load test, crash/disk-full test, docs/runbooks).
+1. Cài `pyinstaller` vào `backend/.venv`, chuẩn hóa `desktop/launcher.py` hỗ trợ `sys._MEIPASS` và data dir cạnh `ExamGuard.exe`, tạo `desktop/examguard.spec` và `tools/build_portable.ps1` (`EG-701`, `EG-702`).
+2. Kiểm thử khởi chạy thực `dist/ExamGuard/ExamGuard.exe` trên Windows 11 x64 không cần quyền Admin, xác minh zero external connections (`EG-703`).
+3. Triển khai `tools/load_test.py` đo thực tế 45 client ảo đồng thời (p50/p95, error rate, RSS memory, zero lost ACK) (`EG-705`).
+4. Triển khai `backend/tests/test_p7_resilience_and_recovery.py` kiểm thử restart WAL recovery, disk-full/permission error handling an toàn, và cross-PC backup/restore (`EG-706`, `EG-707`).
+5. Soạn `docs/LAN_AP_GUIDE.md`, `docs/TEACHER_QUICKSTART.md`, `docs/STUDENT_QUICKSTART.md`, `docs/RELEASE_CHECKLIST.md`, `CHANGELOG.md`, xuất release zip + `.sha256` (`EG-704`, `EG-708`, `EG-709`, `EG-710`, `EG-712`), tạo `docs/phase-reports/PHASE_P7_REPORT.md` và commit hoàn tất P7.

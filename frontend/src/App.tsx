@@ -10,6 +10,7 @@ import { StudentJoinShell } from "./pages/student/StudentJoinShell";
 import { ClassesPage } from "./pages/teacher/ClassesPage";
 import { DashboardPage } from "./pages/teacher/DashboardPage";
 import { LanHelpPage } from "./pages/teacher/LanHelpPage";
+import { PaperBridgePage } from "./pages/teacher/PaperBridgePage";
 import { QuestionBankPage } from "./pages/teacher/QuestionBankPage";
 import { ResultsAuditPage } from "./pages/teacher/ResultsAuditPage";
 import { SettingsBackupPage } from "./pages/teacher/SettingsBackupPage";
@@ -80,6 +81,7 @@ export function AppRoutes() {
               <Route path="/classes" element={<ClassesPage />} />
               <Route path="/questions" element={<QuestionBankPage />} />
               <Route path="/exams/new" element={<WaitingRoomPage />} />
+              <Route path="/paper" element={<PaperBridgePage />} />
               <Route path="/results" element={<ResultsAuditPage />} />
               <Route
                 path="/settings"

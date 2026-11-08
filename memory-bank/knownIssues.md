@@ -1,13 +1,12 @@
 # Known Issues / Assumptions
 
-## Giới hạn kỹ thuật & Ràng buộc hiện tại (Cập nhật sau P5)
+## Giới hạn kỹ thuật & Ràng buộc hiện tại (Cập nhật sau P6)
 
-- Chưa có dữ liệu chạy thực nghiệm ngoài lớp học trên nhiều điện thoại vật lý (`EG-008`, `EG-407` giữ trạng thái `REVIEW`) và chưa có ảnh chụp camera thực tế để đo OMR ngoài môi trường phòng lab (sẽ thực hiện/đánh dấu trung thực ở P6–P7).
-- Font TTF offline `Ubuntu-R`/`Ubuntu-B` + `DejaVuSans` trên biên nhận PDF hỗ trợ tốt tiếng Việt và ký hiệu toán cơ bản; công thức LaTeX phức tạp trên biên nhận PDF khuyến nghị đối chiếu bản web KaTeX hoặc đề gốc.
+- Chưa có dữ liệu chạy thực nghiệm ngoài lớp học trên nhiều điện thoại vật lý (`EG-008`, `EG-407`, `EG-711` giữ trạng thái `REVIEW`) và chưa quét thử ảnh chụp camera điện thoại ngoài đời thực với phiếu OMR in giấy (mới kiểm thử trên phiếu sinh trực tiếp kết hợp biến dạng nghiêng -6°/+5.5°, giảm sáng, tô đúp, nét nhạt và cắt mất góc).
+- `Ubuntu-R.ttf` / `Ubuntu-B.ttf` gặp lỗi ReportLab ToUnicode `\x00` với một số chữ tiếng Việt ghép dấu; đã đổi `_ensure_pdf_fonts()` sang ưu tiên `DejaVuSans.ttf` giải quyết triệt để lỗi tìm/chọn text tiếng Việt trong mọi PDF xuất ra.
+- Không nhúng sẵn `tesseract`/`pdftoppm` trong bản Portable (`v0.1.0-beta.1`) để giữ dung lượng nhỏ gọn, cấp phép sạch BSD/MIT/Apache và tránh nhận diện sai công thức; PDF scan toàn ảnh hiển thị cảnh báo `PDF_LOW_TEXT_DENSITY_OCR_NEEDED` và trích ảnh trang gốc cho giáo viên đối chiếu.
 - Windows Hotspot có thể không chạy khi không có Internet hoặc không hỗ trợ số clients mong muốn; router/AP offline đề nghị.
 - Browser API không nhận MAC/IMEI; device binding bypass được nếu đổi browser/xóa dữ liệu; anti-cheat là răn đe/cảnh báo.
-- Web app không thể chặn chắc screenshot/4G/second phone; mất Wi-Fi có thể do kỹ thuật.
-- Xử lý công thức MathType cũ/PDF vector/OCR có độ khó cao, cần fallback và review.
 - HTTP LAN không mã hóa; không thể khẳng định an toàn khi dùng Wi-Fi công cộng không tin cậy.
 - Quy định thi chính thức phụ thuộc chính sách cơ sở giáo dục và pháp luật đang có hiệu lực khi deploy.
 

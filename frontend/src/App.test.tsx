@@ -7,6 +7,7 @@ import {
   backupApi,
   examApi,
   monitoringApi,
+  paperApi,
   questionApi,
   resultsApi,
   roomApi,
@@ -143,7 +144,10 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Ngân hàng đề & Trình chuyển đổi Word (.docx)")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Ngân hàng đề & Trình chuyển đổi (.docx / .pdf / .xlsx)")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Cấu hình đọc file Excel")).toBeInTheDocument();
     expect(await screen.findByText("Ngân hàng câu hỏi đã duyệt (1)")).toBeInTheDocument();
   });
 
@@ -600,5 +604,90 @@ describe("ExamGuard P0 & P1 UI Flows", () => {
     expect(
       screen.getByRole("button", { name: /Tải thẻ chia sẻ PNG/i })
     ).toBeInTheDocument();
+  });
+
+  it("renders P6 Paper Bridge & OMR review console on /paper", async () => {
+    vi.spyOn(examApi, "listExams").mockResolvedValue([
+      {
+        exam_id: "ex-paper-1",
+        classroom_id: "cls1",
+        room_code: "PPR01",
+        title: "Thi thử Lý A4/OMR",
+        duration_s: 900,
+        status: "CLOSED",
+        question_count: 2,
+        shuffle_questions: true,
+        shuffle_options: true,
+        remaining_s: 0,
+        is_paused: false,
+        start_at: null,
+        deadline_at: null,
+        closed_at: "2026-11-08T10:00:00Z",
+        policy: {},
+      },
+    ]);
+    vi.spyOn(paperApi, "listVersions").mockResolvedValue({
+      exam_id: "ex-paper-1",
+      versions: [
+        {
+          id: "pv1",
+          version_code: "101",
+          question_count: 2,
+          answer_key_map: { "1": ["A"], "2": ["C"] },
+          created_at: "2026-11-08T10:00:00Z",
+        },
+      ],
+    });
+    vi.spyOn(paperApi, "listScans").mockResolvedValue([
+      {
+        scan_id: "scan-1",
+        exam_id: "ex-paper-1",
+        student_id: "s-paper-1",
+        student_name: "Lê Minh Giấy",
+        roster_code: "HS009",
+        paper_version_id: "pv1",
+        version_code: "101",
+        roster_code_detected: "0009",
+        version_code_detected: "101",
+        source_sha256: "deadbeef12345678",
+        detected_answers: { "1": "A", "2": "B" },
+        confirmed_answers: { "1": "A", "2": "B" },
+        confidence: {
+          fiducial_found: true,
+          questions: {
+            "1": { status: "CONFIDENT", confidence: 0.96 },
+            "2": { status: "AMBIGUOUS", confidence: 0.3 },
+          },
+        },
+        ambiguous_flags: ["Q2_AMBIGUOUS"],
+        overall_confidence: 0.63,
+        status: "NEEDS_REVIEW",
+        linked_submission_id: null,
+        confirmed_at: null,
+        reason: "",
+        created_at: "2026-11-08T10:15:00Z",
+      },
+    ]);
+    vi.spyOn(rosterApi, "listStudents").mockResolvedValue([
+      { id: "s-paper-1", roster_code: "HS009", full_name: "Lê Minh Giấy", archived: false },
+    ]);
+    vi.spyOn(paperApi, "fetchScanImage").mockResolvedValue(new Blob(["fake"], { type: "image/png" }));
+    if (!URL.createObjectURL) {
+      URL.createObjectURL = vi.fn(() => "blob:mock-omr");
+    }
+    if (!URL.revokeObjectURL) {
+      URL.revokeObjectURL = vi.fn();
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/paper"]}>
+        <AppRoutes />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Đề giấy, Mã đề & Chấm phiếu OMR offline")).toBeInTheDocument();
+    expect(await screen.findByText("Mã đề 101")).toBeInTheDocument();
+    expect(await screen.findByText(/Câu 2: Có dấu hiệu tô đúp/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Xác nhận & Chuyển vào Bảng điểm chung/i })).toBeInTheDocument();
   });
 });

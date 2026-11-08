@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from app.converters.docx_adapter import extract_docx_elements
-from app.converters.ingest import store_source_document
-from app.converters.segmenter import segment_elements
+from app.converters.ingest import store_source_file
+from app.converters.pdf_adapter import extract_pdf_elements
+from app.converters.segmenter import SegmentedQuestionDraft, segment_elements
+from app.converters.xlsx_converter import parse_xlsx_questions
 from app.db.models import (
     AnswerKeyVersion,
     ImportJob,
@@ -24,24 +26,31 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 
-def import_docx_exam(
+def _persist_import_job_drafts(
     db: Session,
     *,
     filename: str,
     content: bytes,
+    kind: str,
+    parser_version: str,
+    segmented: list[SegmentedQuestionDraft],
+    diagnostics: dict[str, Any] | None,
     sources_dir: Path,
-    assets_dir: Path,
     teacher_id: int,
+    audit_action: str,
 ) -> tuple[ImportJob, list[QuestionDraft]]:
-    doc = store_source_document(db, sources_dir=sources_dir, filename=filename, content=content)
-    elements = extract_docx_elements(content, db=db, assets_dir=assets_dir)
-    segmented = segment_elements(elements)
-
+    doc = store_source_file(
+        db,
+        sources_dir=sources_dir,
+        filename=filename,
+        content=content,
+        kind=kind,
+    )
     job = ImportJob(
         id=str(uuid.uuid4()),
         document_id=doc.id,
         status="COMPLETED",
-        parser_version="docx-v1.0",
+        parser_version=parser_version,
         summary_json="{}",
         error_json="[]",
     )
@@ -72,7 +81,7 @@ def import_docx_exam(
             "filename": doc.original_filename,
             "anchors": item.source_anchors,
             "raw_preview": item.raw_preview,
-            "parser_version": "docx-v1.0",
+            "parser_version": parser_version,
         }
         draft = QuestionDraft(
             id=str(uuid.uuid4()),
@@ -90,25 +99,118 @@ def import_docx_exam(
         db.add(draft)
         drafts.append(draft)
 
-    summary = {
+    summary: dict[str, Any] = {
         "total_questions": len(drafts),
         "warnings_count": warnings_count,
         "unknown_key_count": unknown_key_count,
         "filename": doc.original_filename,
         "sha256": doc.sha256,
+        "format": kind,
     }
+    if diagnostics:
+        summary["diagnostics"] = diagnostics
     job.summary_json = json.dumps(summary, ensure_ascii=False)
     record_audit_event(
         db,
         actor_type="teacher",
         actor_id=str(teacher_id),
-        action="IMPORT_DOCX_JOB",
+        action=audit_action,
         target_type="import_job",
         target_id=job.id,
         details=summary,
     )
     db.commit()
     return job, drafts
+
+
+def import_exam_file(
+    db: Session,
+    *,
+    filename: str,
+    content: bytes,
+    sources_dir: Path,
+    assets_dir: Path,
+    teacher_id: int,
+    profile: str = "auto",
+) -> tuple[ImportJob, list[QuestionDraft]]:
+    ext = Path(filename or "de_thi.docx").suffix.lower().lstrip(".")
+    if not ext:
+        # Infer from magic bytes if filename lacks extension
+        ext = "pdf" if content.lstrip(b"\xef\xbb\xbf\r\n ").startswith(b"%PDF-") else "docx"
+
+    if ext == "docx":
+        store_source_file(
+            db, sources_dir=sources_dir, filename=filename, content=content, kind="docx"
+        )
+        elements = extract_docx_elements(content, db=db, assets_dir=assets_dir)
+        segmented = segment_elements(elements)
+        return _persist_import_job_drafts(
+            db,
+            filename=filename,
+            content=content,
+            kind="docx",
+            parser_version="docx-v1.0",
+            segmented=segmented,
+            diagnostics=None,
+            sources_dir=sources_dir,
+            teacher_id=teacher_id,
+            audit_action="IMPORT_DOCX_JOB",
+        )
+    if ext == "pdf":
+        store_source_file(
+            db, sources_dir=sources_dir, filename=filename, content=content, kind="pdf"
+        )
+        elements, diag = extract_pdf_elements(content, db=db, assets_dir=assets_dir)
+        segmented = segment_elements(elements)
+        return _persist_import_job_drafts(
+            db,
+            filename=filename,
+            content=content,
+            kind="pdf",
+            parser_version="pdf-v1.0",
+            segmented=segmented,
+            diagnostics=diag,
+            sources_dir=sources_dir,
+            teacher_id=teacher_id,
+            audit_action="IMPORT_PDF_JOB",
+        )
+    if ext == "xlsx":
+        segmented, diag = parse_xlsx_questions(content, profile=profile)
+        return _persist_import_job_drafts(
+            db,
+            filename=filename,
+            content=content,
+            kind="xlsx",
+            parser_version="xlsx-v1.0",
+            segmented=segmented,
+            diagnostics=diag,
+            sources_dir=sources_dir,
+            teacher_id=teacher_id,
+            audit_action="IMPORT_XLSX_JOB",
+        )
+    raise HTTPException(
+        status_code=400,
+        detail="Chỉ hỗ trợ file đề .docx, .pdf hoặc .xlsx.",
+    )
+
+
+def import_docx_exam(
+    db: Session,
+    *,
+    filename: str,
+    content: bytes,
+    sources_dir: Path,
+    assets_dir: Path,
+    teacher_id: int,
+) -> tuple[ImportJob, list[QuestionDraft]]:
+    return import_exam_file(
+        db,
+        filename=filename if Path(filename).suffix else f"{filename}.docx",
+        content=content,
+        sources_dir=sources_dir,
+        assets_dir=assets_dir,
+        teacher_id=teacher_id,
+    )
 
 
 def _validate_draft_for_approval(draft: QuestionDraft) -> tuple[list[Any], list[dict[str, Any]], list[str]]:

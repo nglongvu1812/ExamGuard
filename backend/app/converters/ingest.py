@@ -36,7 +36,12 @@ def sanitize_filename(filename: str) -> str:
     return cleaned[:200] or "exam_source.docx"
 
 
-def validate_docx_bytes(content: bytes) -> None:
+def _validate_zip_container_bytes(
+    content: bytes,
+    *,
+    required_entries: set[str],
+    format_label: str,
+) -> None:
     if not content:
         raise HTTPException(status_code=400, detail="Tệp đề thi trống.")
     if len(content) > MAX_UPLOAD_BYTES:
@@ -44,66 +49,108 @@ def validate_docx_bytes(content: bytes) -> None:
     if not content.startswith(b"PK\x03\x04"):
         raise HTTPException(
             status_code=400,
-            detail="Tệp không phải định dạng Word (.docx) hợp lệ.",
+            detail=f"Tệp không phải định dạng {format_label} hợp lệ.",
         )
 
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as zf:
             infos = zf.infolist()
             if len(infos) > MAX_ZIP_ENTRIES:
-                raise HTTPException(status_code=400, detail="Tệp nén DOCX có quá nhiều thành phần bất thường.")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Tệp nén {format_label} có quá nhiều thành phần bất thường.",
+                )
             total_uncompressed = 0
-            has_document_xml = False
+            found_entries: set[str] = set()
             for info in infos:
                 name = info.filename
                 if name.startswith("/") or "\\" in name or ".." in Path(name).parts:
                     raise HTTPException(
                         status_code=400,
-                        detail="Phát hiện đường dẫn không an toàn (path traversal) trong tệp DOCX.",
+                        detail=f"Phát hiện đường dẫn không an toàn (path traversal) trong tệp {format_label}.",
                     )
                 if info.file_size > MAX_UNCOMPRESSED_BYTES:
                     raise HTTPException(
                         status_code=400,
-                        detail="Thành phần trong tệp DOCX vượt quá kích thước an toàn (zip bomb guard).",
+                        detail=f"Thành phần trong tệp {format_label} vượt ngưỡng an toàn (zip bomb guard).",
                     )
                 total_uncompressed += info.file_size
                 if total_uncompressed > MAX_UNCOMPRESSED_BYTES:
                     raise HTTPException(
                         status_code=400,
-                        detail="Tổng kích thước giải nén tệp DOCX vượt ngưỡng an toàn.",
+                        detail=f"Tổng kích thước giải nén tệp {format_label} vượt ngưỡng an toàn.",
                     )
                 if info.compress_size > 0 and (info.file_size / info.compress_size) > MAX_COMPRESSION_RATIO:
                     raise HTTPException(
                         status_code=400,
                         detail="Phát hiện tỷ lệ nén bất thường (nghi ngờ zip bomb).",
                     )
-                if name == "word/document.xml":
-                    has_document_xml = True
+                if name in required_entries:
+                    found_entries.add(name)
 
-            if not has_document_xml:
+            missing = required_entries - found_entries
+            if missing:
                 raise HTTPException(
                     status_code=400,
-                    detail="Tệp DOCX thiếu cấu trúc word/document.xml.",
+                    detail=f"Tệp {format_label} thiếu thành phần chuẩn ({', '.join(sorted(missing))}).",
                 )
     except zipfile.BadZipFile as exc:
-        raise HTTPException(status_code=400, detail="Tệp DOCX bị hỏng cấu trúc ZIP.") from exc
+        raise HTTPException(status_code=400, detail=f"Tệp {format_label} bị hỏng cấu trúc ZIP.") from exc
 
 
-def store_source_document(
+def validate_docx_bytes(content: bytes) -> None:
+    _validate_zip_container_bytes(
+        content,
+        required_entries={"word/document.xml"},
+        format_label="Word (.docx)",
+    )
+
+
+def validate_xlsx_bytes(content: bytes) -> None:
+    _validate_zip_container_bytes(
+        content,
+        required_entries={"xl/workbook.xml"},
+        format_label="Excel (.xlsx)",
+    )
+
+
+def validate_pdf_bytes(content: bytes) -> None:
+    if not content:
+        raise HTTPException(status_code=400, detail="Tệp PDF trống.")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Tệp PDF vượt quá giới hạn 20 MB.")
+    if not content.lstrip(b"\xef\xbb\xbf\r\n ").startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="Tệp không có chữ ký PDF (%PDF-) hợp lệ.")
+
+
+def store_source_file(
     db: Session,
     *,
     sources_dir: Path,
     filename: str,
     content: bytes,
+    kind: str,
 ) -> SourceDocument:
-    validate_docx_bytes(content)
+    ext = kind.lower().lstrip(".")
+    if ext == "docx":
+        validate_docx_bytes(content)
+        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif ext == "pdf":
+        validate_pdf_bytes(content)
+        mime = "application/pdf"
+    elif ext == "xlsx":
+        validate_xlsx_bytes(content)
+        mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file đề .docx, .pdf hoặc .xlsx.")
+
     sha = hashlib.sha256(content).hexdigest()
     existing = db.execute(select(SourceDocument).where(SourceDocument.sha256 == sha)).scalar_one_or_none()
     if existing is not None:
         return existing
 
     sources_dir.mkdir(parents=True, exist_ok=True)
-    relpath = f"{sha}.docx"
+    relpath = f"{sha}.{ext}"
     target = (sources_dir / relpath).resolve()
     if not target.is_relative_to(sources_dir.resolve()):
         raise HTTPException(status_code=400, detail="Đường dẫn lưu trữ không hợp lệ.")
@@ -113,13 +160,29 @@ def store_source_document(
         id=str(uuid.uuid4()),
         sha256=sha,
         original_filename=sanitize_filename(filename),
-        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        mime_type=mime,
         relpath=relpath,
         size_bytes=len(content),
     )
     db.add(doc)
     db.flush()
     return doc
+
+
+def store_source_document(
+    db: Session,
+    *,
+    sources_dir: Path,
+    filename: str,
+    content: bytes,
+) -> SourceDocument:
+    return store_source_file(
+        db,
+        sources_dir=sources_dir,
+        filename=filename,
+        content=content,
+        kind="docx",
+    )
 
 
 def store_media_asset(

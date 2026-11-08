@@ -566,3 +566,58 @@ class ReceiptVersion(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class PaperVersion(Base):
+    """Deterministic printed paper variant (Mã đề) reusing canonical option_id key mapping."""
+
+    __tablename__ = "paper_versions"
+    __table_args__ = (UniqueConstraint("exam_id", "version_code", name="uq_paper_exam_version_code"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    version_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    question_order_json: Mapped[str] = mapped_column(Text, nullable=False)
+    option_order_json: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_key_map_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class OmrScanSubmission(Base):
+    """Immutable scanned OMR sheet with alignment telemetry, confidence scores, and teacher review gate."""
+
+    __tablename__ = "omr_scan_submissions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[str | None] = mapped_column(ForeignKey("students.id"), nullable=True, index=True)
+    paper_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("paper_versions.id"), nullable=True, index=True
+    )
+    roster_code_detected: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    version_code_detected: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    source_image_relpath: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    aligned_preview_relpath: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    detected_answers_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confirmed_answers_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    ambiguous_questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    overall_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="NEEDS_REVIEW")
+    linked_attempt_id: Mapped[str | None] = mapped_column(ForeignKey("attempts.id"), nullable=True)
+    linked_submission_id: Mapped[str | None] = mapped_column(ForeignKey("submissions.id"), nullable=True)
+    confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("teacher_profiles.id"), nullable=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reason: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

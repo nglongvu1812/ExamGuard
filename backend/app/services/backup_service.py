@@ -54,6 +54,8 @@ def _collect_record_counts(db: Session) -> dict[str, int]:
         "grade_runs",
         "score_versions",
         "receipt_versions",
+        "paper_versions",
+        "omr_scan_submissions",
         "audit_events",
     ]
     counts: dict[str, int] = {}
@@ -105,6 +107,8 @@ def create_full_backup(
                 ("sources", settings.sources_dir),
                 ("assets", settings.assets_dir),
                 ("receipts", settings.receipts_dir),
+                ("paper", settings.paper_dir),
+                ("scans", settings.scans_dir),
             ]:
                 if base_dir.exists():
                     for p in base_dir.rglob("*"):
@@ -294,6 +298,8 @@ def restore_backup_archive(
             ("sources", settings.sources_dir),
             ("assets", settings.assets_dir),
             ("receipts", settings.receipts_dir),
+            ("paper", settings.paper_dir),
+            ("scans", settings.scans_dir),
         ]:
             extracted_dir = tmp_dir / folder
             if extracted_dir.is_dir():

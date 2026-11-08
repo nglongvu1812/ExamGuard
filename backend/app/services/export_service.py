@@ -60,14 +60,16 @@ def _ensure_pdf_fonts() -> tuple[str, str]:
     ubuntu_b = fonts_dir / "Ubuntu-B.ttf"
 
     if not _FONTS_REGISTERED:
-        if ubuntu_r.exists():
-            pdfmetrics.registerFont(TTFont("EG-Regular", str(ubuntu_r)))
-        elif dejavu.exists():
+        # Prefer DejaVuSans over Ubuntu TTF in ReportLab PDFs so Vietnamese extended
+        # precomposed glyphs and math symbols preserve lossless ToUnicode CMaps.
+        if dejavu.exists():
             pdfmetrics.registerFont(TTFont("EG-Regular", str(dejavu)))
-        if ubuntu_b.exists():
-            pdfmetrics.registerFont(TTFont("EG-Bold", str(ubuntu_b)))
-        elif dejavu.exists():
             pdfmetrics.registerFont(TTFont("EG-Bold", str(dejavu)))
+        else:
+            if ubuntu_r.exists():
+                pdfmetrics.registerFont(TTFont("EG-Regular", str(ubuntu_r)))
+            if ubuntu_b.exists():
+                pdfmetrics.registerFont(TTFont("EG-Bold", str(ubuntu_b)))
         _FONTS_REGISTERED = True
 
     registered = set(pdfmetrics.getRegisteredFontNames())
@@ -76,6 +78,16 @@ def _ensure_pdf_fonts() -> tuple[str, str]:
     if "EG-Bold" in registered:
         bold_font = "EG-Bold"
     return regular_font, bold_font
+
+
+def ensure_pdf_fonts() -> tuple[str, str]:
+    """Public helper returning offline-registered (regular_font, bold_font) for PDF builders."""
+    return _ensure_pdf_fonts()
+
+
+def load_offline_pil_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Public helper returning bundled offline TrueType Pillow font for image/OMR templates."""
+    return _load_pil_font(size, bold=bold)
 
 
 def _load_pil_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:

@@ -10,11 +10,11 @@ from app.db.models import ImportJob, QuestionDraft
 from app.security.auth import TeacherPrincipal, require_teacher
 from app.services.question_service import (
     approve_question_draft,
-    import_docx_exam,
+    import_exam_file,
     list_approved_questions,
     update_question_draft,
 )
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -87,18 +87,20 @@ def _draft_to_dto(d: QuestionDraft) -> QuestionDraftDTO:
 async def post_import_questions(
     request: Request,
     file: UploadFile = File(...),
+    profile: str = Form("auto"),
     teacher: TeacherPrincipal = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> ImportJobResponse:
     settings = request.app.state.settings
     content = await file.read()
-    job, drafts = import_docx_exam(
+    job, drafts = import_exam_file(
         db,
         filename=file.filename or "de_thi.docx",
         content=content,
         sources_dir=settings.sources_dir,
         assets_dir=settings.assets_dir,
         teacher_id=teacher.teacher_id,
+        profile=profile,
     )
     return ImportJobResponse(
         job_id=job.id,

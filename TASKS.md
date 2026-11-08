@@ -88,15 +88,15 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-601 | TODO | Multiple print versions using deterministic mapping |
-| EG-602 | TODO | PDF A4 booklet generated offline with math/image fallback |
-| EG-603 | TODO | OMR sheet with student and exam code markers |
-| EG-604 | TODO | OMR image processing crop/deskew/bubbles with confidence |
-| EG-605 | TODO | Teacher review ambiguous OMR and original scan stored |
-| EG-606 | TODO | Paper result maps into shared grade history |
-| EG-607 | TODO | PDF text/multi-column/vector diagram converter |
-| EG-608 | TODO | XLSX import variants/teacher parsing profiles |
-| EG-609 | TODO | Benchmark report and optional local OCR feasibility |
+| EG-601 | DONE | Multiple print versions using deterministic mapping |
+| EG-602 | DONE | PDF A4 booklet generated offline with math/image fallback |
+| EG-603 | DONE | OMR sheet with student and exam code markers |
+| EG-604 | DONE | OMR image processing crop/deskew/bubbles with confidence |
+| EG-605 | DONE | Teacher review ambiguous OMR and original scan stored |
+| EG-606 | DONE | Paper result maps into shared grade history |
+| EG-607 | DONE | PDF text/multi-column/vector diagram converter |
+| EG-608 | DONE | XLSX import variants/teacher parsing profiles |
+| EG-609 | DONE | Benchmark report and optional local OCR feasibility |
 
 ## P7 — Release/Pilot
 

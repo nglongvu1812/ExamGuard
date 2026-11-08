@@ -20,6 +20,7 @@ from app.api.auth import router as auth_router
 from app.api.exams import router as exams_router
 from app.api.health import router as system_router
 from app.api.monitoring import router as monitoring_router
+from app.api.paper import router as paper_router
 from app.api.questions import router as questions_router
 from app.api.results import router as results_router
 from app.api.rooms import router as rooms_router
@@ -45,6 +46,8 @@ from app.db.models import (  # noqa: F401
     GradeRun,
     ImportJob,
     Incident,
+    OmrScanSubmission,
+    PaperVersion,
     PresenceEvent,
     Question,
     QuestionDraft,
@@ -158,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(exams_router)
     app.include_router(monitoring_router)
     app.include_router(results_router)
+    app.include_router(paper_router)
     app.include_router(questions_router)
     app.include_router(assets_router)
     app.include_router(ws_router)

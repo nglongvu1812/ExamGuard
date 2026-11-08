@@ -18,6 +18,11 @@ const WARNING_LABELS: Record<string, string> = {
   MATH_PARSE_WARNING: "Cần rà soát lại hiển thị công thức OMML",
   EXTERNAL_IMAGE_BLOCKED: "Đã chặn ảnh liên kết ngoài Internet",
   MISSING_IMAGE_BINARY: "Thiếu tệp ảnh bên trong file Word",
+  PDF_VECTOR_OR_COMPLEX_LAYOUT:
+    "Trang PDF có hình vẽ vector / bảng biểu phức tạp — cần kiểm tra đối chiếu bản gốc",
+  PDF_LOW_TEXT_DENSITY_OCR_NEEDED:
+    "Trang PDF ít ký tự text (có thể là bản scan ảnh) — chưa tự OCR tự động, cần đối chiếu thủ công",
+  DUPLICATE_OPTION_TEXT: "Có phương án trùng lặp nội dung — vui lòng kiểm tra",
 };
 
 export function QuestionBankPage() {
@@ -26,6 +31,7 @@ export function QuestionBankPage() {
   const [selectedDraftId, setSelectedDraftId] = useState<string>("");
   const [bank, setBank] = useState<ApprovedQuestionDTO[]>([]);
   const [bankName, setBankName] = useState("Ngân hàng chung");
+  const [xlsxProfile, setXlsxProfile] = useState("auto");
   const [editingStem, setEditingStem] = useState(false);
   const [stemTextEdit, setStemTextEdit] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -45,13 +51,13 @@ export function QuestionBankPage() {
     void loadBank();
   }, [loadBank]);
 
-  const handleUploadDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       setUploading(true);
       setError(null);
-      const imported = await questionApi.importDocx(file);
+      const imported = await questionApi.importFile(file, xlsxProfile);
       setJob(imported);
       setSelectedDraftId(imported.drafts[0]?.id ?? "");
       setNotice(
@@ -152,18 +158,37 @@ export function QuestionBankPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Ngân hàng đề & Trình chuyển đổi Word (.docx)
+            Ngân hàng đề & Trình chuyển đổi (.docx / .pdf / .xlsx)
           </h1>
           <p className="mt-1 text-sm text-slate-600">
             Giữ nguyên hình ảnh, bảng biểu và công thức toán OMML. Giáo viên rà soát và duyệt trước khi thi.
           </p>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#1E3A5F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162C49]">
-          <FileUp className="h-4 w-4" aria-hidden="true" />
-          <span>{uploading ? "Đang chuyển đổi..." : "Tải đề Word (.docx)"}</span>
-          <input type="file" accept=".docx" onChange={handleUploadDocx} className="sr-only" />
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Cấu hình đọc file Excel"
+            value={xlsxProfile}
+            onChange={(e) => setXlsxProfile(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700"
+          >
+            <option value="auto">Mẫu Excel: Tự nhận diện</option>
+            <option value="vn_standard">Mẫu Excel: Chuẩn Việt Nam</option>
+            <option value="english_bank">Mẫu Excel: Chuẩn Tiếng Anh</option>
+            <option value="positional_abcd">Mẫu Excel: Theo cột A–D cố định</option>
+          </select>
+
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#1E3A5F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162C49]">
+            <FileUp className="h-4 w-4" aria-hidden="true" />
+            <span>{uploading ? "Đang chuyển đổi..." : "Tải đề (.docx / .pdf / .xlsx)"}</span>
+            <input
+              type="file"
+              accept=".docx,.pdf,.xlsx"
+              onChange={handleUploadFile}
+              className="sr-only"
+            />
+          </label>
+        </div>
       </div>
 
       {error ? (
