@@ -1,5 +1,5 @@
 # Active Task
 
-- **Phase hiện tại:** P7 — Đóng gói Windows Portable, Kiểm thử tải & Phục hồi, Tài liệu & Phát hành Beta (`EG-701`..`EG-712`)
-- **Task kế tiếp:** Cài đặt `pyinstaller`, cập nhật `desktop/launcher.py` (xử lý `sys._MEIPASS`, thư mục `ExamGuardData` di động cạnh EXE, `--version`), viết `desktop/examguard.spec` + `tools/build_portable.ps1`, kiểm thử lạnh `ExamGuard.exe` trên Windows 11, viết `tools/load_test.py` (45 client ảo), viết `backend/tests/test_p7_resilience_and_recovery.py`, soạn bộ runbook & `CHANGELOG.md` + gói release ZIP kèm SHA-256.
+- **Phase hiện tại:** P7 hoàn tất — Phát hành bản thử nghiệm `v0.1.0-beta.1` và chuẩn bị thử nghiệm thực địa (`Field Pilot`).
+- **Nhiệm vụ:** Duy trì tính toàn vẹn của mã nguồn, gói phát hành di động `ExamGuard-v0.1.0-beta.1-win64-portable.zip` (47.55 MB, SHA-256 xác thực), kết quả đo tải dồn dập 45 học sinh ảo (3 lượt lặp, p95=727.9ms, 0 mất ACK), và trọn bộ tài liệu vận hành ngoại tuyến.
 - **Lệnh kiểm chứng chuẩn:** `powershell -ExecutionPolicy Bypass -File tools\verify.ps1`

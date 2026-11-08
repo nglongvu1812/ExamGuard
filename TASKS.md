@@ -102,18 +102,18 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-701 | TODO | Portable onedir EXE launch on clean Windows 10 x64 |
-| EG-702 | TODO | Windows 11 x64 test + no admin runtime unless firewall permission |
-| EG-703 | TODO | No Internet network traffic to external servers during exam |
-| EG-704 | TODO | LAN AP/router setup documented + hotspot caveat |
-| EG-705 | TODO | 40–50 client load scenario, p50/p95 latency/errors measured |
-| EG-706 | TODO | Crash, disk-full, power-loss simulated recoverability tests |
-| EG-707 | TODO | Backup/restore migration test on another PC |
-| EG-708 | TODO | Signed/hashed release archive with version and changelog |
-| EG-709 | TODO | Teacher manual quickstart + troubleshooting |
-| EG-710 | TODO | Student quickstart with QR and accessibility/alternative notes |
-| EG-711 | TODO | 1–2 teacher pilots with feedback and issue triage |
-| EG-712 | TODO | Release checklist license/security/privacy/legal review; label beta if pending |
+| EG-701 | REVIEW | Portable onedir EXE built & cold-boot verified on Windows 11; separate clean Win10 x64 PC test pending field pilot |
+| EG-702 | DONE | Windows 11 x64 tested + non-admin runtime verified without elevation |
+| EG-703 | DONE | Zero Internet network traffic / zero external CDN requests verified statically & dynamically |
+| EG-704 | DONE | LAN AP/router guide documented (`docs/LAN_AP_GUIDE.md`) + Hotspot caveats & firewall |
+| EG-705 | DONE | 45-client concurrent load benchmark measured (`tools/load_test.py`, 3 runs, p95=727.9ms, 0 lost ACK) |
+| EG-706 | DONE | Simulated disk-full (HTTP 507) & permission denied tests preserve live DB (`test_p7_resilience_and_recovery.py`) |
+| EG-707 | DONE | Mid-exam crash restart WAL recovery & cross-PC full restore test verified |
+| EG-708 | DONE | SHA-256 hashed release archive `ExamGuard-v0.1.0-beta.1-win64-portable.zip` (47.55 MB) + CHANGELOG |
+| EG-709 | DONE | Teacher quickstart manual with 5-step workflow & troubleshooting (`docs/TEACHER_QUICKSTART.md`) |
+| EG-710 | DONE | Student quickstart guide with QR, offline Wi-Fi & paper alternative (`docs/STUDENT_QUICKSTART.md`) |
+| EG-711 | REVIEW | Pilot protocol with 1–2 teachers prepared in runbook; real classroom feedback pending field trial |
+| EG-712 | DONE | Release checklist license audit (59 libs, 0 AGPL), privacy review & Beta status established (`docs/RELEASE_CHECKLIST.md`) |
 
 ## Quy tắc cập nhật
 

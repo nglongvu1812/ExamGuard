@@ -78,6 +78,7 @@ def create_full_backup(
     manifest_id = str(uuid.uuid4())
     archive_name = f"examguard_{label}_{stamp}_{manifest_id[:8]}.zip"
     archive_path = (settings.backups_dir / archive_name).resolve()
+    staging_path = archive_path.with_suffix(".zip.tmp")
 
     alembic_ver = "unknown"
     with contextlib.suppress(Exception):
@@ -86,45 +87,55 @@ def create_full_backup(
     counts = _collect_record_counts(db)
     file_hashes: dict[str, str] = {}
 
-    with tempfile.TemporaryDirectory() as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
-        db_copy_path = tmp_dir / "examguard.db"
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+            db_copy_path = tmp_dir / "examguard.db"
 
-        src_conn = sqlite3.connect(settings.db_path)
-        dst_conn = sqlite3.connect(db_copy_path)
-        try:
-            src_conn.backup(dst_conn)
-        finally:
-            dst_conn.close()
-            src_conn.close()
+            src_conn = sqlite3.connect(settings.db_path)
+            dst_conn = sqlite3.connect(db_copy_path)
+            try:
+                src_conn.backup(dst_conn)
+            finally:
+                dst_conn.close()
+                src_conn.close()
 
-        file_hashes["examguard.db"] = _sha256_file(db_copy_path)
+            file_hashes["examguard.db"] = _sha256_file(db_copy_path)
 
-        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            zf.write(db_copy_path, "examguard.db")
+            with zipfile.ZipFile(staging_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                zf.write(db_copy_path, "examguard.db")
 
-            for folder_name, base_dir in [
-                ("sources", settings.sources_dir),
-                ("assets", settings.assets_dir),
-                ("receipts", settings.receipts_dir),
-                ("paper", settings.paper_dir),
-                ("scans", settings.scans_dir),
-            ]:
-                if base_dir.exists():
-                    for p in base_dir.rglob("*"):
-                        if p.is_file():
-                            rel = f"{folder_name}/{p.relative_to(base_dir).as_posix()}"
-                            file_hashes[rel] = _sha256_file(p)
-                            zf.write(p, rel)
+                for folder_name, base_dir in [
+                    ("sources", settings.sources_dir),
+                    ("assets", settings.assets_dir),
+                    ("receipts", settings.receipts_dir),
+                    ("paper", settings.paper_dir),
+                    ("scans", settings.scans_dir),
+                ]:
+                    if base_dir.exists():
+                        for p in base_dir.rglob("*"):
+                            if p.is_file():
+                                rel = f"{folder_name}/{p.relative_to(base_dir).as_posix()}"
+                                file_hashes[rel] = _sha256_file(p)
+                                zf.write(p, rel)
 
-            manifest_payload = {
-                "manifest_id": manifest_id,
-                "created_at": now.isoformat(),
-                "schema_version": alembic_ver,
-                "record_counts": counts,
-                "file_hashes": file_hashes,
-            }
-            zf.writestr("manifest.json", json.dumps(manifest_payload, indent=2, ensure_ascii=False))
+                manifest_payload = {
+                    "manifest_id": manifest_id,
+                    "created_at": now.isoformat(),
+                    "schema_version": alembic_ver,
+                    "record_counts": counts,
+                    "file_hashes": file_hashes,
+                }
+                zf.writestr("manifest.json", json.dumps(manifest_payload, indent=2, ensure_ascii=False))
+
+        staging_path.replace(archive_path)
+    except (OSError, sqlite3.Error) as exc:
+        staging_path.unlink(missing_ok=True)
+        archive_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=507,
+            detail="Không đủ dung lượng ổ đĩa hoặc lỗi ghi khi tạo sao lưu; dữ liệu thi gốc vẫn an toàn.",
+        ) from exc
 
     archive_sha = _sha256_file(archive_path)
     manifest = BackupManifest(

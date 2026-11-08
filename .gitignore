@@ -35,6 +35,7 @@ ExamGuardData/
 build/
 dist/
 *.spec
+!desktop/examguard.spec
 release/
 
 # Logs & OS

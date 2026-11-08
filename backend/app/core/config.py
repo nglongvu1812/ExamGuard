@@ -1,5 +1,6 @@
 """ExamGuard core configuration using Pydantic v2 Settings."""
 
+import sys
 from pathlib import Path
 
 from pydantic import Field
@@ -7,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _default_data_dir() -> Path:
-    """Resolve ./ExamGuardData beside the workspace or executable directory."""
+    """Resolve ExamGuardData beside the frozen executable or current workspace."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "ExamGuardData"
     return Path.cwd() / "ExamGuardData"
 
 
@@ -69,25 +72,25 @@ class Settings(BaseSettings):
 
     def ensure_data_dirs(self) -> None:
         """Create required data directories and verify write permission explicitly."""
-        for directory in (
-            self.data_dir,
-            self.assets_dir,
-            self.sources_dir,
-            self.backups_dir,
-            self.logs_dir,
-            self.receipts_dir,
-            self.paper_dir,
-            self.scans_dir,
-        ):
-            directory.mkdir(parents=True, exist_ok=True)
-        probe = self.data_dir / ".write_probe"
         try:
+            for directory in (
+                self.data_dir,
+                self.assets_dir,
+                self.sources_dir,
+                self.backups_dir,
+                self.logs_dir,
+                self.receipts_dir,
+                self.paper_dir,
+                self.scans_dir,
+            ):
+                directory.mkdir(parents=True, exist_ok=True)
+            probe = self.data_dir / ".write_probe"
             probe.write_text("ok", encoding="utf-8")
             probe.unlink(missing_ok=True)
         except OSError as exc:
             raise PermissionError(
-                f"Thư mục dữ liệu '{self.data_dir}' không có quyền ghi. "
-                "Vui lòng chọn thư mục khác có quyền ghi hoặc cấp quyền."
+                f"Thư mục dữ liệu '{self.data_dir}' không có quyền ghi hoặc đầy dung lượng. "
+                "Vui lòng chọn thư mục khác có quyền ghi hoặc kiểm tra dung lượng ổ đĩa."
             ) from exc
 
 

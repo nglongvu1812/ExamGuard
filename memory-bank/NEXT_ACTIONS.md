@@ -1,7 +1,8 @@
 # Next Actions
 
-1. Cài `pyinstaller` vào `backend/.venv`, chuẩn hóa `desktop/launcher.py` hỗ trợ `sys._MEIPASS` và data dir cạnh `ExamGuard.exe`, tạo `desktop/examguard.spec` và `tools/build_portable.ps1` (`EG-701`, `EG-702`).
-2. Kiểm thử khởi chạy thực `dist/ExamGuard/ExamGuard.exe` trên Windows 11 x64 không cần quyền Admin, xác minh zero external connections (`EG-703`).
-3. Triển khai `tools/load_test.py` đo thực tế 45 client ảo đồng thời (p50/p95, error rate, RSS memory, zero lost ACK) (`EG-705`).
-4. Triển khai `backend/tests/test_p7_resilience_and_recovery.py` kiểm thử restart WAL recovery, disk-full/permission error handling an toàn, và cross-PC backup/restore (`EG-706`, `EG-707`).
-5. Soạn `docs/LAN_AP_GUIDE.md`, `docs/TEACHER_QUICKSTART.md`, `docs/STUDENT_QUICKSTART.md`, `docs/RELEASE_CHECKLIST.md`, `CHANGELOG.md`, xuất release zip + `.sha256` (`EG-704`, `EG-708`, `EG-709`, `EG-710`, `EG-712`), tạo `docs/phase-reports/PHASE_P7_REPORT.md` và commit hoàn tất P7.
+1. Duy trì bộ kiểm thử tự động luôn xanh (`powershell -ExecutionPolicy Bypass -File tools\verify.ps1`).
+2. Thực hiện kế hoạch thử nghiệm thực địa (Field Pilot) tại trường THPT khi có điều kiện thiết bị:
+   - Thử nghiệm kết nối router/AP Wi-Fi với 40–50 điện thoại vật lý học sinh (`EG-008`, `EG-407`).
+   - Kiểm thử khởi chạy gói tệp `ExamGuard.exe` trên máy tính Windows 10 x64 độc lập (`EG-701`).
+   - Thu thập phản hồi thực tế của 1–2 giáo viên và chụp thử ảnh phiếu OMR in giấy thực tế qua camera điện thoại (`EG-711`).
+3. Chuẩn bị tài liệu báo cáo đồ án tốt nghiệp tổng kết toàn bộ 8 phase M1–M6.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -71,6 +72,11 @@ logger = logging.getLogger("examguard.app")
 def _resolve_static_dir(settings: Settings) -> Path | None:
     if settings.static_dir and settings.static_dir.exists():
         return settings.static_dir
+    meipass = getattr(sys, "_MEIPASS", None)
+    if isinstance(meipass, str):
+        frozen_dist = Path(meipass) / "frontend" / "dist"
+        if frozen_dist.exists() and (frozen_dist / "index.html").exists():
+            return frozen_dist
     candidate = Path(__file__).resolve().parents[3] / "frontend" / "dist"
     if candidate.exists() and (candidate / "index.html").exists():
         return candidate

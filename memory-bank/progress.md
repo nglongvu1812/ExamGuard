@@ -11,10 +11,10 @@
 | P4 Monitoring | PASS (EG-407 REVIEW) | EG-401..406, 408 DONE; 22/22 pytest + 8/8 vitest pass; physical 3-phone matrix pending pilot |
 | P5 Scores/Receipts | PASS | EG-501..EG-510 DONE, 26/26 pytest + 10/10 vitest pass |
 | P6 Paper/OMR | PASS | EG-601..EG-609 DONE, 29/29 pytest + 11/11 vitest pass; benchmark measured |
-| P7 Release/Pilot | IN_PROGRESS | Starting EG-701..EG-712 |
+| P7 Release/Pilot | PASS (EG-701, EG-711 REVIEW) | EG-702..EG-710, EG-712 DONE; 33/33 pytest + 11/11 vitest pass; Portable build & load test measured |
 
-2026-11-08 — P6 (`EG-601`..`EG-609`)
-Implemented: Migration `0007_paper_bridge_and_omr` (`PaperVersion`, `OmrScanSubmission`), deterministic paper variants mapping back to `option_id`, offline A4 booklet & OMR PDFs (`DejaVuSans.ttf` lossless ToUnicode), Pillow+NumPy 8-param homography OMR processor with bubble contrast confidence & `NEEDS_REVIEW` queue, `409 Conflict` online override protection + bridge into shared `GradeRun`/`ScoreVersion`, `pypdf` 2-col/vector/low-text PDF converter & 4-profile XLSX question converter, `/paper` UI & multi-format `/questions` UI.
-Verification: `tools/verify.ps1` (29/29 pytest, 11/11 vitest, ruff, mypy, eslint, tsc, build PASS) + live P6 benchmark (PDF 20q 71.3ms, XLSX 50q 58.6ms, OMR -6° rotated 40/40 hits in 161.8ms).
-Evidence paths: `docs/phase-reports/PHASE_P6_REPORT.md`, `backend/tests/test_p6_paper_and_converters.py`, `frontend/src/App.test.tsx`.
-Next: P7 (`EG-701`..`EG-712`).
+2026-11-08 — P7 (`EG-701`..`EG-712`)
+Implemented: PyInstaller onedir spec & `build_portable.ps1`, launcher dynamic bundle paths + UTF-8 console stream, atomic staging backup with `HTTP 507` on disk full, `load_test.py` 45-client concurrent benchmark tool, `test_p7_resilience_and_recovery.py` (zero-CDN audit, crash WAL recovery, cross-PC full restore, permission/ENOSPC safety), runbooks (`LAN_AP_GUIDE.md`, `TEACHER_QUICKSTART.md`, `STUDENT_QUICKSTART.md`), `RELEASE_CHECKLIST.md` (59 Python libs audit, 0 AGPL), and `CHANGELOG.md`.
+Verification: `tools/verify.ps1` (33/33 pytest, 11/11 vitest, ruff, mypy 41 files + desktop/tools, eslint, tsc, vite build PASS) + live cold-boot smoke test on Windows 11 (0 WAN sockets) + 45-client load benchmark (3 replicates, p95 save 727.9ms, 0 lost ACK, 45/45 submitted).
+Evidence paths: `docs/phase-reports/PHASE_P7_REPORT.md`, `dist/release/ExamGuard-v0.1.0-beta.1-win64-portable.zip`, `docs/RELEASE_CHECKLIST.md`.
+Status: All core engineering phases P0–P7 COMPLETE. Ready for field trials.
