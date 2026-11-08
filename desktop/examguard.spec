@@ -8,6 +8,7 @@ from PyInstaller.utils.hooks import collect_submodules
 ROOT = Path(SPECPATH).resolve().parent
 BACKEND = ROOT / "backend"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
+ICON_PATH = ROOT / "frontend" / "public" / "favicon.ico"
 
 hiddenimports = [
     *collect_submodules("app"),
@@ -70,6 +71,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="ExamGuard",
+    icon=str(ICON_PATH) if ICON_PATH.exists() else None,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
