@@ -2,9 +2,9 @@
 
 ## Current focus
 
-- Phase: P3 — Exam Engine, Timer, Answer Integrity (`EG-301`..`EG-310`).
-- Objective: Xây dựng cấu hình kỳ thi từ ngân hàng câu hỏi, trộn đề deterministic theo seed giữ nguyên `option_id`, state machine phòng thi + server timer + pause/resume, lưu bài commit-before-ACK idempotent, đồng bộ sau mất kết nối, nộp bài atomic và backup/restore SQLite + assets.
+- Phase: P4 — Realtime Monitoring & Security/Fairness (`EG-401`..`EG-408`).
+- Objective: Triển khai WebSocket phòng thi `/ws/v1/room/{room_id}` có xác thực teacher/student, heartbeat & threshold grace configurable (3s/5s/15s), ghi nhận `visibilitychange`/`pagehide` trung lập (không kết luận gian lận tự động), `PresenceEvent` & `Incident`, bảng điều khiển giám sát thời gian thực cho giáo viên + xử lý `Mở lại` / `Gia hạn` / `Kết thúc` có audit, màn hình sự cố kỹ thuật cho học sinh và negative security tests.
 
 ## Last completed work
 
-- 2026-11-08: Hoàn thành Phase P2 (`EG-201`..`EG-209` DONE). 16/16 pytest + 4/4 vitest + lint/typecheck/build PASS. Báo cáo tại `docs/phase-reports/PHASE_P2_REPORT.md`.
+- 2026-11-08: Hoàn thành Phase P3 (`EG-301`..`EG-310` DONE). 20/20 pytest + 6/6 vitest + lint/typecheck/build PASS. Báo cáo tại `docs/phase-reports/PHASE_P3_REPORT.md`.

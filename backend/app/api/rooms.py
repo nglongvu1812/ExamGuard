@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from app.api.deps import get_db
-from app.db.models import Attempt, DeviceBinding, Exam, Student
+from app.db.models import AnswerRevision, Attempt, DeviceBinding, Exam, ExamQuestion, Student
 from app.security.auth import (
     StudentPrincipal,
     TeacherPrincipal,
     require_student,
     require_teacher,
 )
+from app.services.exam_service import compute_remaining_seconds
 from app.services.room_service import (
     approve_all_pending,
     approve_attempt,
@@ -20,7 +21,7 @@ from app.services.room_service import (
 from app.services.roster_service import list_classroom_students
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/v1", tags=["rooms"])
@@ -48,6 +49,9 @@ class RoomSummaryDTO(BaseModel):
     title: str
     duration_s: int
     status: str
+    remaining_s: int = 0
+    is_paused: bool = False
+    question_count: int = 0
 
 
 class CreateRoomResponse(BaseModel):
@@ -62,6 +66,9 @@ class RoomRosterEntryDTO(BaseModel):
     attempt_id: str | None
     attempt_state: str  # NOT_JOINED | PENDING_APPROVAL | READY | ACTIVE | SUBMITTED
     device_bound: bool
+    latest_revision: int = 0
+    answered_count: int = 0
+    submitted_at: str | None = None
 
 
 class JoinRoomRequest(BaseModel):
@@ -80,6 +87,10 @@ class AttemptStatusResponse(BaseModel):
     student_name: str
     roster_code: str
     state: str
+    remaining_s: int = 0
+    is_paused: bool = False
+    latest_revision: int = 0
+    submitted_at: str | None = None
 
 
 class JoinRoomResponse(BaseModel):
@@ -97,6 +108,11 @@ def list_rooms(
     db: Session = Depends(get_db),
 ) -> list[RoomSummaryDTO]:
     exams = db.execute(select(Exam).order_by(Exam.created_at.desc())).scalars().all()
+    q_counts = dict(
+        db.execute(
+            select(ExamQuestion.exam_id, func.count(ExamQuestion.id)).group_by(ExamQuestion.exam_id)
+        ).all()
+    )
     return [
         RoomSummaryDTO(
             exam_id=ex.id,
@@ -105,6 +121,9 @@ def list_rooms(
             title=ex.title,
             duration_s=ex.duration_s,
             status=ex.status,
+            remaining_s=compute_remaining_seconds(ex),
+            is_paused=ex.paused_at is not None,
+            question_count=int(q_counts.get(ex.id, 0)),
         )
         for ex in exams
     ]
@@ -174,17 +193,36 @@ def get_room_roster(
         .all()
     )
 
-    return [
-        RoomRosterEntryDTO(
-            student_id=st.id,
-            roster_code=st.roster_code,
-            full_name=st.full_name,
-            attempt_id=attempts[st.id].id if st.id in attempts else None,
-            attempt_state=attempts[st.id].state if st.id in attempts else "NOT_JOINED",
-            device_bound=(st.id in attempts and attempts[st.id].id in bound_attempt_ids),
+    attempt_ids = [a.id for a in attempts.values()]
+    answered_counts: dict[str, int] = {}
+    if attempt_ids:
+        rows = db.execute(
+            select(
+                AnswerRevision.attempt_id,
+                func.count(func.distinct(AnswerRevision.question_version_id)),
+            )
+            .where(AnswerRevision.attempt_id.in_(attempt_ids))
+            .group_by(AnswerRevision.attempt_id)
+        ).all()
+        answered_counts = {att_id: int(cnt) for att_id, cnt in rows}
+
+    entries: list[RoomRosterEntryDTO] = []
+    for st in students:
+        att = attempts.get(st.id)
+        entries.append(
+            RoomRosterEntryDTO(
+                student_id=st.id,
+                roster_code=st.roster_code,
+                full_name=st.full_name,
+                attempt_id=att.id if att else None,
+                attempt_state=att.state if att else "NOT_JOINED",
+                device_bound=(att is not None and att.id in bound_attempt_ids),
+                latest_revision=att.latest_revision if att else 0,
+                answered_count=answered_counts.get(att.id, 0) if att else 0,
+                submitted_at=att.submitted_at.isoformat() if (att and att.submitted_at) else None,
+            )
         )
-        for st in students
-    ]
+    return entries
 
 
 @router.post("/rooms/{exam_id}/attempts/{attempt_id}/approve")
@@ -262,6 +300,10 @@ def post_join_room(
             student_name=result.student.full_name,
             roster_code=result.student.roster_code,
             state=result.attempt.state,
+            remaining_s=compute_remaining_seconds(result.exam, result.attempt),
+            is_paused=result.exam.paused_at is not None,
+            latest_revision=result.attempt.latest_revision,
+            submitted_at=result.attempt.submitted_at.isoformat() if result.attempt.submitted_at else None,
         ),
     )
 
@@ -293,6 +335,10 @@ def get_my_attempt(
         student_name=st.full_name,
         roster_code=st.roster_code,
         state=attempt.state,
+        remaining_s=compute_remaining_seconds(exam, attempt),
+        is_paused=exam.paused_at is not None,
+        latest_revision=attempt.latest_revision,
+        submitted_at=attempt.submitted_at.isoformat() if attempt.submitted_at else None,
     )
 
 

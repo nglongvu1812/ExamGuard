@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.assets import router as assets_router
 from app.api.auth import router as auth_router
+from app.api.exams import router as exams_router
 from app.api.health import router as system_router
 from app.api.questions import router as questions_router
 from app.api.rooms import router as rooms_router
@@ -23,13 +24,17 @@ from app.core.logging import configure_logging
 from app.db.base import Base
 from app.db.models import (  # noqa: F401
     AnswerKeyVersion,
+    AnswerRevision,
     Asset,
     Attempt,
     AuditEvent,
+    BackupManifest,
     ClassMembership,
     Classroom,
     DeviceBinding,
     Exam,
+    ExamPermutation,
+    ExamQuestion,
     ImportJob,
     Question,
     QuestionDraft,
@@ -37,6 +42,7 @@ from app.db.models import (  # noqa: F401
     SourceDocument,
     Student,
     StudentInvite,
+    Submission,
     SystemMetadata,
     TeacherProfile,
 )
@@ -105,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(roster_router)
     app.include_router(rooms_router)
+    app.include_router(exams_router)
     app.include_router(questions_router)
     app.include_router(assets_router)
 

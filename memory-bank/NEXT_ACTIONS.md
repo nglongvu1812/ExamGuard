@@ -1,6 +1,6 @@
 # Next Actions
 
-1. Tạo Alembic migration `0004_exam_engine_and_answers.py` và ORM models cho `Exam` (mở rộng), `ExamQuestion`, `ExamPermutation`, `AnswerRevision`, `Submission`, `BackupManifest`.
-2. Xây dựng `exam_service.py` (state machine + deterministic permutation + server timer/pause/resume + zero answer_key leak), `answer_service.py` (commit-before-ACK idempotent revision + atomic submission), `backup_service.py` (SQLite backup + checksum + restore dry-run).
-3. Triển khai API `/api/v1/exams/*`, `/api/v1/attempts/me/*`, `/api/v1/system/backups/*` và kiểm thử concurrent race + server restart persistence.
-4. Xây dựng UI `ExamConfigPage.tsx` (`T4`), nâng cấp `WaitingRoomPage.tsx`, xây `StudentExamPage.tsx` (`S4/S6`) có hàng đợi pending local khi rớt Wi-Fi, trạng thái đồng bộ trung thực và Backup UI (`T9`).
+1. Tạo Alembic migration `0005_monitoring_and_incidents.py` và ORM models `PresenceEvent`, `Incident`.
+2. Xây dựng `monitoring_service.py` + `ws.py` WebSocket hub `/ws/v1/room/{exam_id}` (teacher & student auth, zero key leak, presence states `ACTIVE -> SUSPECTED -> DISCONNECTED -> LOCKED_PENDING_REVIEW`), API heartbeat, telemetry (`visibilitychange`/`pagehide`), kiểm tra quá hạn grace period và giáo viên xử lý sự cố (`unlock`, `extend_time`, `terminate`) ghi audit.
+3. Xây dựng Teacher Live Monitoring Dashboard (`T6`) tích hợp vào phòng thi + Incident Drawer và Student Incident Screen (`S5`) tự động reconnect kèm backoff/jitter.
+4. Viết `test_p4_monitoring.py` + kiểm thử UI Vitest + báo cáo `PHASE_P4_REPORT.md`.

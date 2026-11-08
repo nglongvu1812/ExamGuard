@@ -12,6 +12,7 @@ import { DashboardPage } from "./pages/teacher/DashboardPage";
 import { LanHelpPage } from "./pages/teacher/LanHelpPage";
 import { PlaceholderSection } from "./pages/teacher/PlaceholderSection";
 import { QuestionBankPage } from "./pages/teacher/QuestionBankPage";
+import { SettingsBackupPage } from "./pages/teacher/SettingsBackupPage";
 import { WaitingRoomPage } from "./pages/teacher/WaitingRoomPage";
 
 export function AppRoutes() {
@@ -91,13 +92,7 @@ export function AppRoutes() {
               />
               <Route
                 path="/settings"
-                element={
-                  <PlaceholderSection
-                    title="Sao lưu, khôi phục & cài đặt dữ liệu"
-                    description="Kiểm tra thư mục dữ liệu ExamGuardData, tạo bản sao lưu an toàn và khôi phục khi sự cố."
-                    phaseLabel="Phase P3"
-                  />
-                }
+                element={<SettingsBackupPage health={health} />}
               />
               <Route
                 path="/lan-help"

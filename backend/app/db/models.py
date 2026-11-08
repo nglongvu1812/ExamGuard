@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.db.base import Base
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -99,7 +99,7 @@ class ClassMembership(Base):
 
 
 class Exam(Base):
-    """Exam session entity (P1 minimal waiting-room shell; expanded in P3)."""
+    """Exam session entity with lifecycle state, deterministic shuffle seed, and server timer."""
 
     __tablename__ = "exams"
 
@@ -109,6 +109,19 @@ class Exam(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     duration_s: Mapped[int] = mapped_column(Integer, nullable=False, default=2700)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="WAITING")
+    seed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    shuffle_questions: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    shuffle_options: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    paused_total_s: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    policy_json: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default='{"heartbeat_s": 3, "suspected_s": 5, "disconnect_s": 15, "grace_submit_s": 30}',
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -154,6 +167,9 @@ class Attempt(Base):
         nullable=False,
     )
     latest_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    extra_time_s: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -323,3 +339,99 @@ class AnswerKeyVersion(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class ExamQuestion(Base):
+    """Approved question versions locked into a specific exam."""
+
+    __tablename__ = "exam_questions"
+    __table_args__ = (UniqueConstraint("exam_id", "question_version_id", name="uq_exam_question_ver"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    question_version_id: Mapped[str] = mapped_column(
+        ForeignKey("question_versions.id"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+
+
+class ExamPermutation(Base):
+    """Frozen seeded question & option order per student (option_ids stay invariant)."""
+
+    __tablename__ = "exam_permutations"
+    __table_args__ = (UniqueConstraint("exam_id", "student_id", name="uq_perm_exam_student"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    question_order_json: Mapped[str] = mapped_column(Text, nullable=False)
+    option_order_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class AnswerRevision(Base):
+    """Idempotent append-only answer write log committed prior to ACK."""
+
+    __tablename__ = "answer_revisions"
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "idempotency_key", name="uq_answer_attempt_idempotency"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), nullable=False, index=True)
+    question_version_id: Mapped[str] = mapped_column(
+        ForeignKey("question_versions.id"), nullable=False, index=True
+    )
+    selected_option_ids_json: Mapped[str] = mapped_column(Text, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    client_timestamp: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    committed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class Submission(Base):
+    """Immutable canonical snapshot of a student's final answers upon submission."""
+
+    __tablename__ = "submissions"
+    __table_args__ = (UniqueConstraint("attempt_id", name="uq_submission_attempt"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("attempts.id"), nullable=False, index=True)
+    exam_id: Mapped[str] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    answer_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    submission_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="student_submit")
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+
+class BackupManifest(Base):
+    """Records verified backup snapshots with SHA-256 checksums."""
+
+    __tablename__ = "backup_manifests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    location: Mapped[str] = mapped_column(String(255), nullable=False)
+    record_counts_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

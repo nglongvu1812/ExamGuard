@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Clock, ShieldCheck, Wifi, WifiOff } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { CheckCircle2, Clock, ShieldCheck, Wifi, WifiOff } from "lucide-react";
 import { roomApi, type AttemptStatusResponse, type HealthResponse } from "../../api/client";
 import { StatusBadge } from "../../components/StatusBadge";
+import { StudentExamPage } from "./StudentExamPage";
 
 interface StudentJoinShellProps {
   health: HealthResponse | null;
@@ -85,11 +86,39 @@ export function StudentJoinShell({ health, healthError }: StudentJoinShellProps)
     }
   };
 
+  const refreshNow = useCallback(async () => {
+    if (!studentToken) return;
+    try {
+      const res = await roomApi.getMyAttempt(studentToken);
+      setAttempt(res);
+      setError(null);
+    } catch {
+      // keep existing UI state gracefully
+    }
+  }, [studentToken]);
+
   const handleLeave = () => {
     window.sessionStorage.removeItem("eg_student_token");
     setStudentToken(null);
     setAttempt(null);
   };
+
+  if (
+    attempt &&
+    studentToken &&
+    attempt.exam_status === "RUNNING" &&
+    (attempt.state === "READY" || attempt.state === "ACTIVE")
+  ) {
+    return (
+      <StudentExamPage
+        studentToken={studentToken}
+        attemptId={attempt.attempt_id}
+        studentName={attempt.student_name}
+        rosterCode={attempt.roster_code}
+        onSubmitted={() => void refreshNow()}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -132,7 +161,18 @@ export function StudentJoinShell({ health, healthError }: StudentJoinShellProps)
               </div>
             </div>
 
-            {attempt.state === "PENDING_APPROVAL" ? (
+            {attempt.state === "SUBMITTED" ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 space-y-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Bài làm đã được nộp lên máy chủ</span>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  Thời gian ghi nhận:{" "}
+                  <span className="font-mono-data">{attempt.submitted_at ?? "Đã xác nhận"}</span>. Điểm số và đáp án chỉ mở sau khi giáo viên công bố kết quả toàn lớp.
+                </p>
+              </div>
+            ) : attempt.state === "PENDING_APPROVAL" ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 space-y-2">
                 <div className="flex items-center gap-2 font-semibold">
                   <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -146,7 +186,7 @@ export function StudentJoinShell({ health, healthError }: StudentJoinShellProps)
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 space-y-2">
                 <p className="font-semibold">Đã được duyệt vào phòng thi</p>
                 <p className="text-xs leading-relaxed">
-                  Vui lòng giữ nguyên màn hình này. Bài thi sẽ hiển thị ngay khi giáo viên nhấn bắt đầu (Phase P3).
+                  Vui lòng giữ nguyên màn hình này. Bài thi sẽ tự động mở ngay khi giáo viên nhấn bắt đầu.
                 </p>
               </div>
             )}

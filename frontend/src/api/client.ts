@@ -70,6 +70,9 @@ export interface RoomSummaryDTO {
   title: string;
   duration_s: number;
   status: string;
+  remaining_s?: number;
+  is_paused?: boolean;
+  question_count?: number;
 }
 
 export interface IssuedInviteResponse {
@@ -92,6 +95,9 @@ export interface RoomRosterEntryDTO {
   attempt_id: string | null;
   attempt_state: string;
   device_bound: boolean;
+  latest_revision?: number;
+  answered_count?: number;
+  submitted_at?: string | null;
 }
 
 export interface AttemptStatusResponse {
@@ -104,6 +110,10 @@ export interface AttemptStatusResponse {
   student_name: string;
   roster_code: string;
   state: string;
+  remaining_s?: number;
+  is_paused?: boolean;
+  latest_revision?: number;
+  submitted_at?: string | null;
 }
 
 export interface JoinRoomResponse {
@@ -378,5 +388,217 @@ export const questionApi = {
   },
   listBank(): Promise<ApprovedQuestionDTO[]> {
     return fetchJson<ApprovedQuestionDTO[]>("/api/v1/questions/bank", undefined, "teacher");
+  },
+};
+
+export interface ExamDetailDTO {
+  exam_id: string;
+  classroom_id: string;
+  room_code: string;
+  title: string;
+  duration_s: number;
+  status: string;
+  question_count: number;
+  shuffle_questions: boolean;
+  shuffle_options: boolean;
+  remaining_s: number;
+  is_paused: boolean;
+  start_at: string | null;
+  deadline_at: string | null;
+  closed_at: string | null;
+  policy: Record<string, number>;
+}
+
+export interface CreateExamResponse {
+  exam: ExamDetailDTO;
+  invites: IssuedInviteResponse[];
+}
+
+export interface StudentPaperOptionDTO {
+  option_id: string;
+  display_label: string;
+  blocks: ContentBlockDTO[];
+}
+
+export interface StudentPaperQuestionDTO {
+  position: number;
+  question_version_id: string;
+  blocks: ContentBlockDTO[];
+  options: StudentPaperOptionDTO[];
+}
+
+export interface SavedAnswerEntryDTO {
+  selected_option_ids: string[];
+  server_revision: number;
+  committed_at: string;
+}
+
+export interface StudentPaperResponse {
+  attempt_id: string;
+  exam_id: string;
+  exam_title: string;
+  room_code: string;
+  exam_status: string;
+  attempt_state: string;
+  is_paused: boolean;
+  remaining_s: number;
+  server_time_utc: string;
+  deadline_at: string | null;
+  latest_revision: number;
+  questions: StudentPaperQuestionDTO[];
+  saved_answers: Record<string, SavedAnswerEntryDTO>;
+}
+
+export interface SaveAnswerAckResponse {
+  status: string;
+  attempt_id: string;
+  question_version_id: string;
+  selected_option_ids: string[];
+  server_revision: number;
+  idempotency_key: string;
+  committed_at: string;
+  duplicate: boolean;
+}
+
+export interface CanonicalSyncResponse {
+  attempt_id: string;
+  exam_id: string;
+  exam_status: string;
+  attempt_state: string;
+  is_paused: boolean;
+  remaining_s: number;
+  server_time_utc: string;
+  latest_revision: number;
+  saved_answers: Record<string, SavedAnswerEntryDTO>;
+  submitted_at: string | null;
+  snapshot_hash: string | null;
+}
+
+export interface SubmitAttemptResponse {
+  submission_id: string;
+  attempt_id: string;
+  snapshot_hash: string;
+  submitted_at: string;
+  submission_mode: string;
+  already_submitted: boolean;
+}
+
+export const examApi = {
+  listExams(): Promise<ExamDetailDTO[]> {
+    return fetchJson<ExamDetailDTO[]>("/api/v1/exams", undefined, "teacher");
+  },
+  getExam(examId: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(`/api/v1/exams/${examId}`, undefined, "teacher");
+  },
+  createExam(payload: {
+    classroom_id: string;
+    title: string;
+    duration_s: number;
+    question_version_ids: string[];
+    shuffle_questions: boolean;
+    shuffle_options: boolean;
+    policy?: Record<string, number>;
+    open_waiting?: boolean;
+  }): Promise<CreateExamResponse> {
+    return fetchJson<CreateExamResponse>(
+      "/api/v1/exams",
+      { method: "POST", body: JSON.stringify(payload) },
+      "teacher"
+    );
+  },
+  startExam(examId: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(`/api/v1/exams/${examId}/start`, { method: "POST" }, "teacher");
+  },
+  pauseExam(examId: string, reason: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(
+      `/api/v1/exams/${examId}/pause`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+      "teacher"
+    );
+  },
+  resumeExam(examId: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(`/api/v1/exams/${examId}/resume`, { method: "POST" }, "teacher");
+  },
+  closeExam(examId: string, reason: string): Promise<ExamDetailDTO> {
+    return fetchJson<ExamDetailDTO>(
+      `/api/v1/exams/${examId}/close`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+      "teacher"
+    );
+  },
+};
+
+export const studentExamApi = {
+  getPaper(studentToken: string): Promise<StudentPaperResponse> {
+    return fetchJson<StudentPaperResponse>("/api/v1/attempts/me/paper", undefined, "student", studentToken);
+  },
+  saveAnswer(
+    studentToken: string,
+    attemptId: string,
+    payload: {
+      question_version_id: string;
+      selected_option_ids: string[];
+      idempotency_key: string;
+      client_timestamp: string;
+    }
+  ): Promise<SaveAnswerAckResponse> {
+    return fetchJson<SaveAnswerAckResponse>(
+      `/api/v1/attempts/${attemptId}/answers`,
+      { method: "POST", body: JSON.stringify(payload) },
+      "student",
+      studentToken
+    );
+  },
+  syncAttempt(studentToken: string, attemptId: string): Promise<CanonicalSyncResponse> {
+    return fetchJson<CanonicalSyncResponse>(
+      `/api/v1/attempts/${attemptId}/sync`,
+      undefined,
+      "student",
+      studentToken
+    );
+  },
+  submitAttempt(studentToken: string, attemptId: string): Promise<SubmitAttemptResponse> {
+    return fetchJson<SubmitAttemptResponse>(
+      `/api/v1/attempts/${attemptId}/submit`,
+      { method: "POST" },
+      "student",
+      studentToken
+    );
+  },
+};
+
+export interface BackupManifestDTO {
+  id: string;
+  created_at: string;
+  schema_version: string;
+  sha256: string;
+  location: string;
+  record_counts: Record<string, number>;
+  verified_at: string | null;
+}
+
+export interface VerifyBackupResponse {
+  manifest_id: string | null;
+  archive_name: string;
+  schema_version: string;
+  checksum_valid: boolean;
+  sqlite_integrity_ok: boolean;
+  record_counts: Record<string, number>;
+  dry_run: boolean;
+}
+
+export const backupApi = {
+  listBackups(): Promise<BackupManifestDTO[]> {
+    return fetchJson<BackupManifestDTO[]>("/api/v1/system/backups", undefined, "teacher");
+  },
+  createBackup(): Promise<BackupManifestDTO> {
+    return fetchJson<BackupManifestDTO>("/api/v1/system/backups", { method: "POST" }, "teacher");
+  },
+  verifyBackupDryRun(backupId: string): Promise<VerifyBackupResponse> {
+    return fetchJson<VerifyBackupResponse>(
+      `/api/v1/system/backups/${backupId}/verify`,
+      { method: "POST" },
+      "teacher"
+    );
   },
 };

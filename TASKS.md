@@ -45,16 +45,16 @@ Các task ban đầu đều `TODO`, trừ khi agent đã thực sự code/test v
 
 | ID | Status | Definition of Done |
 | --- | --- | --- |
-| EG-301 | TODO | Exam configure UI/API + invalid state transitions tests |
-| EG-302 | TODO | Seeded question/option permutation, score mapping preserved |
-| EG-303 | TODO | Room WAITING/RUNNING/CLOSED lifecycle, server timer/pause/resume |
-| EG-304 | TODO | Student responsive exam UI, navigation, saved state badges |
-| EG-305 | TODO | Transactional answer revisions/idempotency and ACK after commit |
-| EG-306 | TODO | HTTP sync canonical answer state after reconnect |
-| EG-307 | TODO | Submit snapshot atomic and idempotent |
-| EG-308 | TODO | SQLite backup and app restart recovery |
-| EG-309 | TODO | Concurrent race tests: start/close/save/submit |
-| EG-310 | TODO | E2E 5 fake students, offline, capture logs |
+| EG-301 | DONE | Exam configure UI/API + invalid state transitions tests |
+| EG-302 | DONE | Seeded question/option permutation, score mapping preserved |
+| EG-303 | DONE | Room WAITING/RUNNING/CLOSED lifecycle, server timer/pause/resume |
+| EG-304 | DONE | Student responsive exam UI, navigation, saved state badges |
+| EG-305 | DONE | Transactional answer revisions/idempotency and ACK after commit |
+| EG-306 | DONE | HTTP sync canonical answer state after reconnect |
+| EG-307 | DONE | Submit snapshot atomic and idempotent |
+| EG-308 | DONE | SQLite backup and app restart recovery |
+| EG-309 | DONE | Concurrent race tests: start/close/save/submit |
+| EG-310 | DONE | E2E 5 fake students, offline, capture logs |
 
 ## P4 — Monitoring
 
